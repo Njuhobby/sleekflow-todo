@@ -82,6 +82,13 @@ user; silently deleting data is worse than one extra visible row the user can de
 **User impact.** A mis-clicked "Complete" is one click to undo; archived tasks must be
 consciously unarchived before they re-enter the workflow.
 
+**Amendment — archived semantics (A12).** Archived means shelved, not finished: it never
+satisfies a dependency, so dependents stay blocked (the UI marks the blocker as
+archived; the user unarchives it or drops the dependency). Unlike delete, archiving
+keeps dependency edges — the task still exists, so the fact others were waiting on it
+stays true and visible. Archiving is also the only way to end a recurring series
+without completing it.
+
 ## DL-4 — Frontend testing: one E2E of the demo path, no component-test suite (2026-07-08)
 
 **Decision.** The backend carries exhaustive unit + integration coverage; the frontend

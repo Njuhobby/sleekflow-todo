@@ -226,7 +226,9 @@ framework):
 
 Single-page list + modal form. TanStack Query keys mirror API query params, so filter
 changes are cache-keyed refetches. Blocked rows show a 🔒 with tooltip listing incomplete
-dependencies (data already in the list response — no N+1 requests). 409s surface as
+dependencies, marking any that are archived — the two unblock paths (unarchive it, or
+drop the dependency) both start from the user seeing WHY it's blocked (data already in
+the list response — no N+1 requests). 409s surface as
 inline "reload" prompts. Pagination controls rather than virtualization — the server
 never sends more than one page (A9), so the DOM stays small by construction.
 
