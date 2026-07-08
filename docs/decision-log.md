@@ -158,6 +158,7 @@ optimistic version check, so push would only add deploy and test surface.
 **Cut order under time pressure** (first to go → last; everything below the line is
 never cut):
 1. M7 stretch items (auth, bulk operations, cursor pagination)
+1.5. Activity trail (M3.5 + panel timeline — self-added scope, cleanly severable)
 2. T-4.5 perf test (the 10k seed script stays — it's needed for manual verification)
 3. T-6.4 app Dockerfiles (Postgres compose service stays)
 4. T-5.6 Playwright E2E (falls back to a written manual demo checklist)
@@ -166,3 +167,25 @@ never cut):
 Never cut: CRUD + soft delete/restore, dependencies with guard + locks, recurrence with
 idempotent spawn, list filters/sort/pagination at 10k, the simple UI over all of it,
 tests for the above, README, OpenAPI docs, this decision log.
+
+## DL-8 — Activity trail: self-added scope the architecture made cheap (2026-07-08)
+
+**Context.** Once a dependency is removed or a task deleted, the system had no memory —
+DL-5 explicitly recorded "an accidental delete permanently loses the link structure" as
+an accepted trade-off. The brief invites "any other improvements you see fit".
+
+**Decision.** An append-only `Activity` table: every mutation (create, field edits,
+status changes, dependency add/remove, delete with the severed links, restore,
+recurrence spawn) appends an event **in the same transaction**, via the single guarded
+write path (DL-1/D2) that every mutation already flows through — so no mutation can
+skip logging and no event can outlive a rolled-back change. Names are snapshotted in
+payloads so history stays readable after renames/deletes. Surfaced as a read-only
+timeline in the todo's detail panel.
+
+**Why the cost is low.** Audit logging is usually hard because of missed write sites;
+this architecture has exactly one write site. One table, one line per mutation, one GET
+endpoint, one read-only UI section.
+
+**Scope discipline.** Positioned second in the cut order (right after M7 stretch) —
+cleanly severable if time runs short. Without auth it records what happened, not who;
+actor attribution arrives automatically if M7 auth ships.

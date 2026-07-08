@@ -181,6 +181,30 @@ Offset/limit + total count: simple, supports "jump to page" UI, fine at 10k rows
 Cursor pagination is the more-time answer (noted in decision log); at 10k items offset
 cost is negligible.
 
+### D7 — Activity trail rides the single write path (R-7)
+
+```prisma
+model Activity {
+  id        String   @id @default(uuid())
+  todoId    String   // no FK cascade — history outlives everything
+  type      String   // created | updated | status_changed | dependencies_changed | …
+  payload   Json     // event details; names snapshotted at event time
+  createdAt DateTime @default(now())
+  @@index([todoId, createdAt(sort: Desc)])
+}
+```
+
+Every mutation already flows through one service-layer choke point inside a transaction
+(D2) — the activity append is one line at that choke point, atomically committed with
+the change it describes. No mutation can skip it, no event can outlive a rolled-back
+change. This is the payoff of the single-write-path decision: audit logging costs one
+table and one line per mutation site. Append-only, never updated or deleted; kept when
+the todo is soft-deleted. It also softens DL-5's documented trade-off: severed
+dependency links aren't restorable, but their history is permanently visible.
+
+API: `GET /api/todos/:id/activities` (newest-first, paginated). UI: a quiet, read-only
+timeline at the bottom of the detail panel (Notion's page-updates pattern).
+
 ## API surface (OpenAPI is generated from these route schemas)
 
 ```
@@ -197,6 +221,7 @@ PUT    /api/todos/:id/dependencies  replace dependency list; body carries `versi
                                   (bumps it — a dependency change IS an edit); 400 on
                                   cycle/self/deleted-target, 409 on stale version or
                                   when the task is not `not_started` (A11)
+GET    /api/todos/:id/activities  event history, newest-first, paginated (R-7)
 GET    /api/health                liveness + db ping
 GET    /docs                      Swagger UI
 ```
@@ -338,6 +363,11 @@ quick-add (name only, Enter) bypasses it entirely.
 │    ○ Interview notes        not started       │    otherwise an A11 hint explains
 │  Blocking (1)                                 │  ← read-only dependents list
 │    ○ Send to leadership                       │
+│──────────────────────────────────────────────│
+│  Activity                                     │  ← read-only timeline (R-7),
+│   · Dependency on "Design draft" removed  14:02   quiet gray, newest first
+│   · Status: not started → in progress     11:30
+│   · Created                            Jul 7
 │──────────────────────────────────────────────│
 │  [Start] [Complete] [Archive]      [Delete]  │  ← legal transitions only
 └──────────────────────────────────────────────┘

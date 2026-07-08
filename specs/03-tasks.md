@@ -65,6 +65,16 @@ deliverables; M7 is stretch.
       [R-2.4, R-1.8]
       ✅ Gate: race test passes — **this is the hardest test in the project, budget time**
 
+## M3.5 — Activity trail [R-7] (cuttable — see decision log cut order)
+- [ ] T-3.5 Activity table + append inside every service-layer mutation transaction
+      (created / updated / status_changed / dependencies_changed / deleted incl.
+      severed links / restored / spawned_next / created_from_recurrence); names
+      snapshotted in payloads; assertions folded into existing integration tests
+      (e.g. the delete test also asserts the `deleted` activity with severed links)
+      [R-7.1, R-7.2, R-7.3]
+- [ ] T-3.6 GET /todos/:id/activities (newest-first, paginated) + tests [R-7.4]
+      ✅ Gate: every mutation type visible in a todo's timeline
+
 ## M4 — Listing at scale [R-4, R-6.3]
 - [ ] T-4.1 GET /todos filters: status[], priority[], due range, q (name substring,
       ILIKE — also serves the dependency picker), includeDeleted [R-4.1]
@@ -93,7 +103,8 @@ deliverables; M7 is stretch.
 - [ ] T-5.4 Detail side panel (routed via ?selected=:id, Notion peek pattern): shared
       create/edit form, inline validation from shared Zod schemas, recurrence editor,
       dependency picker (search-select via q; enabled only while not_started per A11,
-      with hint otherwise), read-only dependents list, STALE_VERSION banner with reload
+      with hint otherwise), read-only dependents list, activity timeline (R-7),
+      STALE_VERSION banner with reload
 - [ ] T-5.5 Row/panel actions driven by the R-1.8 table (menu shows only legal
       transitions): start / complete / archive / delete-with-undo-toast; blocked 409
       toast lists incomplete dependencies by name; recurring completion toast announces

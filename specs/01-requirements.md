@@ -135,6 +135,23 @@ As a user, I can do all of the above from a browser.
   (status, priority, due_date, deleted_at); verified by a seeded performance test.
 - R-6.4 All API errors SHALL use a consistent envelope `{ error: { code, message, details } }`.
 
+## R-7 Activity Trail (self-added scope, per the brief's "any other improvements")
+
+As a user, I can open a TODO and see everything that ever happened to it, newest first.
+
+- R-7.1 WHEN any mutation commits, THE SYSTEM SHALL append an activity record in the
+  SAME transaction (the single guarded write path guarantees no mutation can skip it).
+  Event types: `created`, `updated` (changed fields with old → new), `status_changed`,
+  `dependencies_changed` (added/removed), `deleted` (including the severed links),
+  `restored`, `spawned_next`, `created_from_recurrence`.
+- R-7.2 Activity records are append-only and immutable; they are retained when the TODO
+  is soft-deleted (they ARE the history).
+- R-7.3 Payloads snapshot referenced names at event time — "dependency on 'Deploy
+  staging' removed" stays readable even if that task is later renamed or deleted.
+- R-7.4 GET /todos/:id/activities returns newest-first, paginated.
+- R-7.5 Without auth, activities record WHAT happened, not who; when auth ships (M7),
+  events gain actor attribution.
+
 ## Out of scope (deliberately not built)
 
 - Real-time sync (WebSocket/SSE) — dropped: low benefit for a TODO list, and
