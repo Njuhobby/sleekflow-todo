@@ -1,6 +1,8 @@
 import Fastify from "fastify";
+import type { FastifyError } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+import fastifyStatic from "@fastify/static";
 import {
   serializerCompiler,
   validatorCompiler,
@@ -35,7 +37,7 @@ export function buildApp() {
 
   // Single place that shapes every error into the envelope (R-6.4):
   // { error: { code, message, details } }
-  app.setErrorHandler((err, _req, reply) => {
+  app.setErrorHandler((err: FastifyError | AppError, _req, reply) => {
     if (err instanceof AppError) {
       return reply.status(err.statusCode).send({
         error: { code: err.code, message: err.message, details: err.details ?? null },
@@ -65,6 +67,21 @@ export function buildApp() {
 
   app.register(healthRoutes, { prefix: "/api" });
   app.register(todosRoutes, { prefix: "/api" });
+
+  // Production single-image mode: serve the built SPA next to the API
+  // (dev uses Vite's proxy instead — no CORS in either environment).
+  const webDist = process.env.WEB_DIST;
+  if (webDist) {
+    app.register(fastifyStatic, { root: webDist });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === "GET" && !req.url.startsWith("/api")) {
+        return reply.sendFile("index.html"); // SPA fallback for /trash etc.
+      }
+      return reply.status(404).send({
+        error: { code: ErrorCodes.NOT_FOUND, message: "Route not found", details: null },
+      });
+    });
+  }
 
   return app;
 }
