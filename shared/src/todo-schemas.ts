@@ -94,6 +94,58 @@ export const TodoDetailSchema = TodoSchema.extend({
 });
 export type TodoDetail = z.infer<typeof TodoDetailSchema>;
 
+/** Accepts both repeated params (?status=a&status=b) and CSV (?status=a,b). */
+const multi = <T extends z.ZodTypeAny>(item: T) =>
+  z.preprocess(
+    (v) =>
+      v === undefined
+        ? undefined
+        : (Array.isArray(v) ? v : [v]).flatMap((s) => String(s).split(",")),
+    z.array(item).min(1).optional()
+  );
+
+// z.coerce.boolean() would turn "false" into true — use an explicit enum.
+const queryBool = z
+  .enum(["true", "false"])
+  .transform((v) => v === "true")
+  .optional();
+
+export const SortFieldSchema = z.enum(["dueDate", "priority", "status", "name", "createdAt"]);
+export type SortField = z.infer<typeof SortFieldSchema>;
+
+export const ListTodosQuerySchema = z.object({
+  status: multi(StatusSchema),
+  priority: multi(PrioritySchema),
+  dueBefore: DueDateSchema.optional(),
+  dueAfter: DueDateSchema.optional(),
+  /** blocked=true → only blocked; blocked=false → only unblocked (R-4.1) */
+  blocked: queryBool,
+  /** Case-insensitive name substring — also powers the dependency picker. */
+  q: z.string().trim().min(1).max(255).optional(),
+  /** deleted=true → the trash view (only soft-deleted todos). */
+  deleted: queryBool,
+  sortBy: SortFieldSchema.default("createdAt"),
+  order: z.enum(["asc", "desc"]).default("desc"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListTodosQuery = z.infer<typeof ListTodosQuerySchema>;
+
+/** List rows carry what the table needs — incl. tooltip data (no N+1). */
+export const TodoListItemSchema = TodoSchema.extend({
+  isBlocked: z.boolean(),
+  incompleteDependencies: z.array(RelatedTodoSchema),
+});
+export type TodoListItem = z.infer<typeof TodoListItemSchema>;
+
+export const TodoListSchema = z.object({
+  items: z.array(TodoListItemSchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type TodoList = z.infer<typeof TodoListSchema>;
+
 export const ActivitySchema = z.object({
   id: z.string().uuid(),
   todoId: z.string().uuid(),

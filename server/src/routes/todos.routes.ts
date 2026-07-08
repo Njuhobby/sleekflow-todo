@@ -10,14 +10,27 @@ import {
   TodoDetailSchema,
   ActivityListQuerySchema,
   ActivityListSchema,
+  ListTodosQuerySchema,
+  TodoListSchema,
   ErrorEnvelopeSchema,
 } from "@shared/todo-schemas";
 import * as todoService from "../services/todo.service.js";
 import { setDependencies } from "../services/dependency.service.js";
+import { listTodos } from "../services/list.service.js";
 
 // Routes are thin: parse (Zod, from shared schemas) → service → DTO out.
 export async function todosRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.route({
+    method: "GET",
+    url: "/todos",
+    schema: {
+      querystring: ListTodosQuerySchema,
+      response: { 200: TodoListSchema, 400: ErrorEnvelopeSchema },
+    },
+    handler: (req) => listTodos(req.query),
+  });
 
   r.route({
     method: "POST",
