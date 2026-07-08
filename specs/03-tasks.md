@@ -82,7 +82,8 @@ deliverables; M7 is stretch.
 ## M5 — Web UI [R-5]
 - [ ] T-5.1 Vite scaffold, typed API client + TanStack Query hooks (shared Zod types)
 - [ ] T-5.1a Design tokens CSS (Notion-inspired palette, type, spacing — see 02-design
-      "Visual direction"); no UI framework
+      "Visual direction") + Radix primitives for interactive behavior (DropdownMenu,
+      Tooltip, Toast, Dialog, Select — styled by our tokens, no styled UI framework)
 - [ ] T-5.2 List page: table, status/priority pill tags, hover-revealed row actions,
       blocked 🔒 + tooltip, inline "+ New" quick-add row, pagination
 - [ ] T-5.3 FilterBar (status, priority, due range, blocked, search) + sort controls +

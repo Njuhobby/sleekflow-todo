@@ -11,6 +11,7 @@ Traces to requirement IDs in `01-requirements.md`.
 | ORM | **Prisma** | Type-safe queries, migrations, easy seeding; raw SQL escape hatch for the couple of hot queries |
 | Database | **PostgreSQL 16** (Docker) | vs SQLite: real concurrent writers (R-6.1) and production realism; vs MongoDB: dependencies and filtered/sorted listings are relational workloads |
 | Frontend | **React 18 + Vite + TypeScript** | Industry default; TanStack Query for server state (caching, optimistic updates, error surfacing) |
+| UI primitives | **Radix UI** (headless) | Behavior only — menus, tooltip, toast, dialog/panel focus management, select — with zero visual opinion: keyboard nav, focus trapping, and positioning are where hand-rolled UI burns hours and hides a11y bugs. Styling stays 100% in our design-tokens CSS. Styled kits (MUI/AntD/Mantine) rejected: fighting their theme to reach the Notion look costs more than it saves. Dates use native `<input type="date">` |
 | Tests | **Vitest** + `app.inject()` (integration) | One runner for both packages; integration tests hit real routes against a test DB |
 | Dev/Ops | docker-compose (db + api + web), GitHub Actions CI | Nice-to-have with high demo value, low cost |
 
@@ -210,8 +211,9 @@ Dev setup: Vite's dev server proxies `/api` to the Fastify port, so no CORS
 configuration is needed in either environment (prod serves the built SPA from the API).
 
 **Visual direction: Notion-inspired.** Not a clone — the discipline: content-first,
-minimal chrome, generous whitespace. Concretely (a single design-tokens CSS file, no UI
-framework):
+minimal chrome, generous whitespace. Concretely (a single design-tokens CSS file; no
+styled UI framework — interactive behavior comes from headless Radix primitives, see
+stack table):
 - System font stack (`-apple-system, "Segoe UI", …`), near-white background (`#ffffff`
   body / `#fbfbfa` panels), primary text `#37352f`, muted `#787774`.
 - Hairline borders (`#e9e9e7`) and 4–6px radii instead of shadows; hover states are a
