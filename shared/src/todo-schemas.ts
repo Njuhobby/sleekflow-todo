@@ -46,9 +46,20 @@ export const UpdateTodoSchema = z
     dueDate: DueDateSchema.nullish(),
     priority: PrioritySchema.optional(),
     recurrence: RecurrenceSchema.nullish(),
+    /** Status changes run the R-1.8 transition guard in the service layer. */
+    status: StatusSchema.optional(),
   })
   .strict();
 export type UpdateTodo = z.infer<typeof UpdateTodoSchema>;
+
+export const SetDependenciesSchema = z
+  .object({
+    /** Optimistic concurrency token — a dependency change IS an edit (D4). */
+    version: z.number().int().min(1),
+    dependencyIds: z.array(z.string().uuid()).max(100),
+  })
+  .strict();
+export type SetDependencies = z.infer<typeof SetDependenciesSchema>;
 
 export const IdParamSchema = z.object({ id: z.string().uuid() });
 
@@ -66,6 +77,22 @@ export const TodoSchema = z.object({
   updatedAt: z.string(),
 });
 export type Todo = z.infer<typeof TodoSchema>;
+
+/** Compact shape for dependency/dependent listings inside a todo detail. */
+export const RelatedTodoSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: StatusSchema,
+});
+export type RelatedTodo = z.infer<typeof RelatedTodoSchema>;
+
+export const TodoDetailSchema = TodoSchema.extend({
+  /** Derived, never stored (D1): true iff any dependency is not completed. */
+  isBlocked: z.boolean(),
+  dependencies: z.array(RelatedTodoSchema),
+  dependents: z.array(RelatedTodoSchema),
+});
+export type TodoDetail = z.infer<typeof TodoDetailSchema>;
 
 export const ErrorEnvelopeSchema = z.object({
   error: z.object({
