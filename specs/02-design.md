@@ -286,6 +286,36 @@ plus Edit / Delete.
 Empty states: no todos at all → "Nothing here — add your first todo below"; filters
 match nothing → "No matches. [Clear filters]".
 
+### Display principles — how state gets visual weight
+
+The resting list should be quiet (Notion discipline); a signal earns color or an icon
+only when it calls for action. Three rules cover overdue, archived, and dependencies:
+
+1. **Overdue is the only red in the resting UI.** Definition (shared helper in
+   `shared/`, one source of truth): `dueDate < now` AND status is neither `completed`
+   nor `archived` — a finished or shelved task is never "overdue", its date is history
+   not a call to action. Display: the due date text turns red, panel and tooltip add
+   the relative form ("3 days overdue"). No row backgrounds, no badges — one red date
+   is enough. The filter bar gets an "Overdue" quick preset (it's just
+   `dueBefore=now` + active statuses, no new API surface).
+
+2. **Archived recedes; it never disappears silently.** The default status filter
+   excludes `archived` (matching every mainstream TODO app); selecting it in the
+   filter shows archived rows dimmed (~60% opacity, gray pill), with actions reduced
+   to exactly what R-1.8 allows: Unarchive, Delete. Completed rows stay full-strength
+   but muted-checked — they still satisfy dependencies, so they're information, not
+   noise. Exception to the recede rule: an archived task that blocks others still
+   shows up marked inside the dependents' 🔒 tooltip (A12) — receded from the list,
+   never from an explanation.
+
+3. **Dependency information appears exactly where it's actionable.** In the list, the
+   only dependency signal is the 🔒 on blocked rows (with the named-blockers tooltip);
+   unblocked tasks show nothing even if they have dependencies — satisfied constraints
+   are panel detail, not list clutter. The panel shows the full picture: Dependencies
+   (each with live status pill) and Blocking (read-only dependents). Every name in
+   both sections is a link that swaps the panel (`?selected=` navigation) — the user
+   can walk the dependency chain without leaving context.
+
 ### Detail panel (create and edit)
 
 One panel, two modes. "+ New" (full details) and row-click (edit) share the form;
