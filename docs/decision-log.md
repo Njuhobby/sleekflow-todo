@@ -92,3 +92,42 @@ docker-compose stack, so it doubles as a pre-demo smoke check.
 
 **Not built.** React Testing Library component tests — revisit if the UI grows real
 client-side logic (optimistic updates, offline queue).
+
+## DL-5 — Dependency graph stays clean by construction (2026-07-08)
+
+**Context.** Three underspecified corners of the dependency feature: can dependencies be
+edited on a started/completed task? What happens to dependency links when a task is
+deleted and later restored? Does the blocked guard apply to backward transitions?
+
+**Decisions.**
+1. *Dependencies are editable only while the task is Not Started.* To change a started
+   task's dependencies, move it back to Not Started first. This makes contradictory
+   states ("in progress but blocked") impossible by construction instead of legislating
+   their semantics, and simplifies the UI (picker only on not-started tasks). The
+   alternative — allowing edits in any status and declaring that blocked only gates
+   transitions — was considered and rejected as needless surface area.
+2. *Deleting a task severs its dependency links (both directions) in the same
+   transaction; restore brings the task back without them.* Restore therefore never
+   changes other tasks' blocked state and can never revive a dependency cycle — the
+   graph only ever contains live tasks, so cycle detection needs no deleted-node rules.
+   Trade-off (documented): an accidental delete permanently loses the link structure;
+   the task's own data survives, satisfying the durability NFR.
+3. *The blocked guard applies only to edges into In Progress / Completed.* Backward
+   edges (→ Not Started, → Archived) are always free — guarding them would trap a
+   completed task forever once one of its dependencies gets reopened.
+
+**Why it matters.** These three rules compose: the only entry point to dependency
+editing (Not Started) is exactly the state every backward edge can always reach, so no
+task can ever be wedged.
+
+## DL-6 — Is this really a multi-user system? (2026-07-08)
+
+**Context.** During review we challenged our own premise: would two users ever really
+race on one TODO list? The brief's first NFR answers it: "The API should support
+multiple users accessing the same TODO list concurrently" — the *same* list, and auth
+is explicitly a nice-to-have, so the baseline is an unauthenticated shared list.
+
+**Assessment.** Concurrency exists even single-user (double-clicks, two browser tabs,
+client retries), which is what the idempotent-completion and optimistic-version
+mechanisms cover; the rarer two-writer races (dependency guard, DL-1) are covered
+because the NFR names them and the cost was one locking pattern reused twice.
