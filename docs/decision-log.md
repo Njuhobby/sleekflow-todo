@@ -189,3 +189,19 @@ endpoint, one read-only UI section.
 **Scope discipline.** Positioned second in the cut order (right after M7 stretch) —
 cleanly severable if time runs short. Without auth it records what happened, not who;
 actor attribution arrives automatically if M7 auth ships.
+
+## Measured: 10k-row performance (2026-07-08)
+
+Seeded 10,000 todos (weighted statuses, ±90-day due dates, ~1,300 dependency edges,
+5% soft-deleted) and measured p95 over 50 runs per query (M2 MacBook Pro, dockerized
+Postgres 16):
+
+| Query | p95 | Threshold |
+|-------|-----|-----------|
+| Default list (page of 20 + count) | 9.0 ms | 100 ms |
+| `blocked=true` (worst case — EXISTS anti-join + tooltip relations) | 20.2 ms | 300 ms |
+| Multi-filter + due-date sort, page of 50 | 3.8 ms | 150 ms |
+
+The derived-at-query-time blocked state (D1) costs ~11 ms over the base list at this
+scale — the cache-invalidation bugs a stored flag would risk are not worth buying back.
+Reproduce with `npm run db:seed && npm run test:perf`.
