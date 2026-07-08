@@ -5,7 +5,17 @@ import { ErrorCodes } from "@shared/error-codes";
 import { prisma } from "../lib/prisma.js";
 import { AppError, NotFoundError } from "../lib/errors.js";
 import { logActivity } from "../lib/activity.js";
-import { toTodoDto } from "../lib/serialize.js";
+import { toTodoDto, toTodoDetailDto } from "../lib/serialize.js";
+import { isLegalTransition, legalTargets, requiresUnblocked } from "../domain/transitions.js";
+
+const RELATION_INCLUDE = {
+  dependencies: {
+    include: { dependency: { select: { id: true, name: true, status: true } } },
+  },
+  dependents: {
+    include: { dependent: { select: { id: true, name: true, status: true } } },
+  },
+} as const;
 
 /**
  * The single guarded write path (D2): every mutation goes through this
@@ -50,18 +60,31 @@ export async function createTodo(input: CreateTodo) {
   });
 }
 
-export async function getTodo(id: string) {
-  const todo = await prisma.todo.findUnique({ where: { id } });
+export async function getTodoDetail(id: string, client: Prisma.TransactionClient = prisma) {
+  const todo = await client.todo.findUnique({ where: { id }, include: RELATION_INCLUDE });
   if (!todo || todo.deletedAt) throw new NotFoundError();
-  return toTodoDto(todo);
+  return toTodoDetailDto(todo);
 }
 
 export async function updateTodo(id: string, input: UpdateTodo) {
-  const { version, ...changes } = input;
+  const { version, status: nextStatus, ...changes } = input;
 
   return prisma.$transaction(async (tx) => {
     const before = await tx.todo.findUnique({ where: { id } });
     if (!before || before.deletedAt) throw new NotFoundError();
+
+    const statusChanging = nextStatus !== undefined && nextStatus !== before.status;
+    if (statusChanging) {
+      if (!isLegalTransition(before.status, nextStatus)) {
+        throw new AppError(
+          400,
+          ErrorCodes.INVALID_TRANSITION,
+          `Cannot move a TODO from ${before.status} to ${nextStatus}`,
+          { from: before.status, to: nextStatus, legalTargets: legalTargets(before.status) }
+        );
+      }
+      if (requiresUnblocked(nextStatus)) await assertUnblocked(tx, id);
+    }
 
     const { count } = await tx.todo.updateMany({
       where: { id, version, deletedAt: null },
@@ -75,18 +98,45 @@ export async function updateTodo(id: string, input: UpdateTodo) {
         ...(changes.recurrence !== undefined && {
           recurrence: recurrenceInput(changes.recurrence),
         }),
+        ...(statusChanging && { status: nextStatus }),
         version: { increment: 1 },
       },
     });
     if (count === 0) await throwStaleOrNotFound(tx, id);
 
     const after = (await tx.todo.findUnique({ where: { id } })) as DbTodo;
+    if (statusChanging) {
+      await logActivity(tx, id, "status_changed", { from: before.status, to: nextStatus });
+    }
     const changed = diff(before, after);
     if (Object.keys(changed).length > 0) {
       await logActivity(tx, id, "updated", { changed });
     }
-    return toTodoDto(after);
+    // M3 hooks here: a recurring todo transitioning to completed spawns its
+    // next occurrence inside this same transaction (D3).
+    return getTodoDetail(id, tx);
   });
+}
+
+/**
+ * The blocked guard (R-3.4, D2). Locks the dependency rows FOR SHARE so a
+ * concurrent reopen of a dependency cannot slip past the check: the reopen
+ * waits until this transition commits (or vice versa). Ordered by id to keep
+ * lock acquisition deadlock-free.
+ */
+async function assertUnblocked(tx: Prisma.TransactionClient, id: string) {
+  const deps = await tx.$queryRaw<Array<{ id: string; name: string; status: string }>>`
+    SELECT t.id, t.name, t.status
+    FROM todos t
+    WHERE t.id IN (SELECT dependency_id FROM todo_dependencies WHERE dependent_id = ${id})
+    ORDER BY t.id
+    FOR SHARE`;
+  const incomplete = deps.filter((d) => d.status !== "completed");
+  if (incomplete.length > 0) {
+    throw new AppError(409, ErrorCodes.TODO_BLOCKED, "TODO is blocked by incomplete dependencies", {
+      incompleteDependencies: incomplete,
+    });
+  }
 }
 
 export async function deleteTodo(id: string) {

@@ -4,11 +4,14 @@ import { z } from "zod";
 import {
   CreateTodoSchema,
   UpdateTodoSchema,
+  SetDependenciesSchema,
   IdParamSchema,
   TodoSchema,
+  TodoDetailSchema,
   ErrorEnvelopeSchema,
 } from "@shared/todo-schemas";
 import * as todoService from "../services/todo.service.js";
+import { setDependencies } from "../services/dependency.service.js";
 
 // Routes are thin: parse (Zod, from shared schemas) → service → DTO out.
 export async function todosRoutes(app: FastifyInstance) {
@@ -32,9 +35,9 @@ export async function todosRoutes(app: FastifyInstance) {
     url: "/todos/:id",
     schema: {
       params: IdParamSchema,
-      response: { 200: TodoSchema, 404: ErrorEnvelopeSchema },
+      response: { 200: TodoDetailSchema, 404: ErrorEnvelopeSchema },
     },
-    handler: (req) => todoService.getTodo(req.params.id),
+    handler: (req) => todoService.getTodoDetail(req.params.id),
   });
 
   r.route({
@@ -44,13 +47,29 @@ export async function todosRoutes(app: FastifyInstance) {
       params: IdParamSchema,
       body: UpdateTodoSchema,
       response: {
-        200: TodoSchema,
+        200: TodoDetailSchema,
         400: ErrorEnvelopeSchema,
         404: ErrorEnvelopeSchema,
         409: ErrorEnvelopeSchema,
       },
     },
     handler: (req) => todoService.updateTodo(req.params.id, req.body),
+  });
+
+  r.route({
+    method: "PUT",
+    url: "/todos/:id/dependencies",
+    schema: {
+      body: SetDependenciesSchema,
+      params: IdParamSchema,
+      response: {
+        200: TodoDetailSchema,
+        400: ErrorEnvelopeSchema,
+        404: ErrorEnvelopeSchema,
+        409: ErrorEnvelopeSchema,
+      },
+    },
+    handler: (req) => setDependencies(req.params.id, req.body),
   });
 
   r.route({
