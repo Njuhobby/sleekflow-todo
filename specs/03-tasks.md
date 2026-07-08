@@ -28,13 +28,17 @@ deliverables; M7 is stretch.
 - [ ] T-2.1 domain/dependency-graph.ts: cycle detection (pure) + unit tests: self, direct,
       transitive, diamond-is-legal, duplicate IDs deduplicated (D5) [R-3.1, R-3.2]
 - [ ] T-2.2 PUT /todos/:id/dependencies (transactional replace + cycle guard; deleted
-      target → 400) [R-3.2]
+      target → 400; task not in not_started → 409) [R-3.1, R-3.2]
+- [ ] T-2.2a Delete cascade: soft delete removes the task's dependency edges (both
+      directions) in the same transaction; restore returns the task without links;
+      tests: delete unblocks dependents, restore does not re-block them, restore can
+      never produce a cycle [R-1.4, R-1.5, R-3.5]
 - [ ] T-2.3 domain/transitions.ts: guard table + unit tests covering every edge of the
       R-1.8 state machine incl. reopen re-runs blocked guard, unarchive → not_started,
       illegal edges → 400 (D2) [R-1.8, R-3.4]
 - [ ] T-2.4 isBlocked computation in detail + list queries (D1) [R-3.3, R-3.5]
 - [ ] T-2.5 Integration: blocked → PATCH in_progress → 409 with dependency IDs; complete
-      the dependency → transition succeeds; deleted dependency doesn't block; two
+      the dependency → transition succeeds; deleting a dependency unblocks (edge gone); two
       parallel requests (transition B vs reopen its dependency A) — the FOR SHARE lock
       must serialize them so the R-3.4 invariant holds either way (D2)
       ✅ Gate: end-to-end blocked-flow test passes
@@ -68,7 +72,8 @@ deliverables; M7 is stretch.
 - [ ] T-5.3 FilterBar (status, priority, due range, blocked) + sort controls — state in
       URL params so demo links are shareable
 - [ ] T-5.4 Create/edit modal: validation errors inline, recurrence editor, dependency
-      picker (search-select of existing todos)
+      picker (search-select of existing todos; only enabled while the task is
+      not_started, per A11)
 - [ ] T-5.5 Row actions: start / complete / archive / delete / restore; 409 conflict and
       blocked errors surfaced with reason [R-5.4]
 - [ ] T-5.6 One Playwright E2E that IS the demo script: create two todos → add dependency

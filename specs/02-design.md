@@ -149,11 +149,19 @@ Every PATCH carries the version it read (`If-Match`-style, in the body). Update 
 the UI can show "someone else changed this — reload". Pessimistic locks rejected: no
 long-running edits, and lost updates only need detection here, not prevention.
 
-### D5 — Cycle detection at write time (R-3.2)
+### D5 — Cycle detection at write time (R-3.2, A11)
 On dependency change, walk the dependency graph (DFS from each new dependency toward the
 dependent) inside the same transaction that writes the links. O(V+E) on the reachable
 subgraph — trivial at this scale. Detected cycle returns the path in the 400 body for
 a good error UX.
+
+Two rules keep the graph permanently clean (eng-review decisions):
+- Dependency edits are rejected (409) unless the dependent task is `not_started` —
+  "blocked but already in progress" states are impossible by construction, and the UI
+  only offers the dependency picker on not-started tasks.
+- Soft-deleting a task hard-deletes its dependency edges in the same transaction
+  (R-1.4), so the graph only ever contains live tasks: cycle detection needs no
+  deleted-node special case, and restore can never revive a cycle.
 
 ### D6 — Pagination is offset-based (R-4.3)
 Offset/limit + total count: simple, supports "jump to page" UI, fine at 10k rows.
@@ -168,11 +176,13 @@ GET    /api/todos                 list; query: status[], priority[], dueBefore, 
 POST   /api/todos                 create
 GET    /api/todos/:id             detail (includes dependencies, dependents, isBlocked)
 PATCH  /api/todos/:id             partial update; body carries `version`; 409 on stale
-DELETE /api/todos/:id             soft delete
-POST   /api/todos/:id/restore     undelete
+DELETE /api/todos/:id             soft delete; removes its dependency edges (both
+                                  directions) in the same transaction
+POST   /api/todos/:id/restore     undelete; comes back without dependency links
 PUT    /api/todos/:id/dependencies  replace dependency list; body carries `version`
                                   (bumps it — a dependency change IS an edit); 400 on
-                                  cycle/self/deleted-target, 409 on stale version
+                                  cycle/self/deleted-target, 409 on stale version or
+                                  when the task is not `not_started` (A11)
 GET    /api/health                liveness + db ping
 GET    /docs                      Swagger UI
 ```

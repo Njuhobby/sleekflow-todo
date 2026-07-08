@@ -15,12 +15,13 @@ be restated in the decision log.
 | A2 | Next occurrence's due date | Computed from the *previous due date*, not completion date; an overdue completion skips missed periods to the first future anchor | Keeps cadence stable (a weekly report due Friday stays on Fridays even if completed Wednesday); never spawns an already-overdue occurrence, and doesn't flood the list with missed periods |
 | A3 | Dependency rule only mentions "In Progress" | Blocked tasks can be moved to neither "In Progress" **nor** "Completed" | Allowing direct completion would make the In-Progress gate meaningless (loophole) |
 | A4 | Does an Archived dependency count as satisfied? | No. Only status = Completed satisfies a dependency | Archiving is putting away, not finishing |
-| A5 | "Data should not be permanently lost when deleted" | Soft delete (`deleted_at` timestamp) + restore endpoint | Simplest mechanism that satisfies the requirement verbatim and is demoable |
+| A5 | "Data should not be permanently lost when deleted" | Soft delete (`deleted_at` timestamp) + restore endpoint. Deleting a TODO also permanently removes its dependency links (both directions, same transaction); restore brings the task back without them | The task's own data survives; severing links keeps other tasks' blocked state from being silently changed by a later restore, and makes cycle revival through restore structurally impossible |
+| A11 | Who can edit dependencies, when | Dependencies are editable only while the dependent task is `not_started`; to change dependencies of a started task, move it back to `not_started` first | Keeps "blocked but in progress" states structurally impossible instead of legislating their semantics; dependency graphs are decided before work starts |
 | A6 | "Multiple users … concurrently" with no auth requirement | Single shared list, no auth; conflicts handled via optimistic concurrency (version check → 409) | Auth is explicitly a nice-to-have; the NFR is about data integrity under concurrent writes, not identity |
 | A7 | Do recurring occurrences inherit dependencies? | No — the new occurrence is created without dependency links | Dependencies usually describe a one-time ordering; auto-copying can create permanently-blocked chains. Logged as a revisit-with-more-time item |
 | A8 | Cycles in dependencies | Rejected at write time (400 with the offending path) | A cycle makes every member permanently blocked; failing fast is the only sane behavior |
 | A9 | "10,000+ items without degrading UX" | Server-side pagination/filtering/sorting with DB indexes; UI never loads the full list | Client-side filtering of 10k rows is the anti-pattern this NFR exists to catch |
-| A10 | Legal status transitions unspecified | Explicit state machine incl. reopen (completed → in_progress/not_started, re-running the blocked guard) and unarchive (archived → not_started) | Mis-clicking "Complete" must be recoverable; nonsensical edges (archived → completed) rejected. Reopening a recurring TODO does not retract the already-spawned next occurrence — it may have been edited by another user |
+| A10 | Legal status transitions unspecified | Explicit state machine incl. reopen and unarchive; the blocked guard applies ONLY to edges into `in_progress` and `completed` — edges to `not_started`/`archived` are always free | Mis-clicking "Complete" must be recoverable; nonsensical edges (archived → completed) rejected. Guarding backward edges would trap tasks in `completed` when a dependency gets reopened. Reopening a recurring TODO does not retract the already-spawned next occurrence |
 
 ## R-1 TODO Management (CRUD)
 
@@ -34,20 +35,25 @@ As a user, I can create, view, update, and delete TODOs.
   machine-readable error body; nothing is persisted.
 - R-1.3 WHEN a TODO is updated, THE SYSTEM SHALL apply partial updates (PATCH semantics)
   and bump its version/updated-at.
-- R-1.4 WHEN a TODO is deleted, THE SYSTEM SHALL soft-delete it (set `deleted_at`); it
-  disappears from all default listings but remains in the database. (A5)
+- R-1.4 WHEN a TODO is deleted, THE SYSTEM SHALL soft-delete it (set `deleted_at`) AND,
+  in the same transaction, permanently remove all dependency links it participates in
+  (as dependent and as dependency). It disappears from all default listings but the task
+  row remains in the database. (A5)
 - R-1.5 WHEN a restore is requested on a soft-deleted TODO, THE SYSTEM SHALL clear
-  `deleted_at` and return the TODO to its previous state.
+  `deleted_at` and return the TODO to its previous status, WITHOUT its former dependency
+  links — restore never changes other tasks' blocked state and can never revive a
+  dependency cycle. (A5)
 - R-1.6 WHEN any operation targets a non-existent or deleted TODO (except restore),
   THE SYSTEM SHALL return 404.
 - R-1.7 Status values: `not_started`, `in_progress`, `completed`, `archived`.
   Priority values: `low`, `medium`, `high`.
 - R-1.8 Legal status transitions (A10): `not_started ↔ in_progress`;
   `not_started | in_progress → completed`; `completed → in_progress | not_started`
-  (reopen — re-runs the blocked guard, R-3.4); any non-archived → `archived`;
-  `archived → not_started` (unarchive). All other transitions are rejected with 400.
-  Reopening a completed recurring TODO SHALL NOT retract the occurrence its completion
-  spawned (R-2.2).
+  (reopen); any non-archived → `archived`; `archived → not_started` (unarchive).
+  All other transitions are rejected with 400. The blocked guard (R-3.4) applies only
+  to edges INTO `in_progress` or `completed`; edges to `not_started` or `archived` are
+  never guarded. Reopening a completed recurring TODO SHALL NOT retract the occurrence
+  its completion spawned (R-2.2).
 
 ## R-2 Recurring Tasks
 
@@ -78,15 +84,17 @@ As a user, I can declare that a TODO depends on other TODOs and be prevented fro
 it prematurely.
 
 - R-3.1 WHEN dependencies are set on a TODO, THE SYSTEM SHALL accept a list of other TODO
-  IDs; self-dependency is rejected with 400.
+  IDs; self-dependency is rejected with 400. Dependencies are editable ONLY while the
+  dependent TODO is `not_started` — otherwise 409 with an error directing the user to
+  move the task back to Not Started first. (A11)
 - R-3.2 WHEN adding a dependency would create a cycle (direct or transitive), THE SYSTEM
   SHALL reject with 400 and include the cycle path in the error. (A8)
 - R-3.3 A TODO is **blocked** iff at least one of its (non-deleted) dependencies has
   status ≠ Completed. (A4)
 - R-3.4 WHEN a status change to In Progress or Completed is requested on a blocked TODO,
   THE SYSTEM SHALL reject with 409 and list the incomplete dependency IDs. (A3)
-- R-3.5 WHEN a dependency is soft-deleted, THE SYSTEM SHALL ignore it in blocked
-  computation (deleted tasks cannot block forever).
+- R-3.5 WHEN a TODO is soft-deleted, its dependency links are removed with it (R-1.4),
+  so it can never block another task — structurally, not via query-time filtering.
 
 ## R-4 Filtering, Sorting, Pagination
 
