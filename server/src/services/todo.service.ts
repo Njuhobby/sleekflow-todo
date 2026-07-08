@@ -7,6 +7,8 @@ import { AppError, NotFoundError } from "../lib/errors.js";
 import { logActivity } from "../lib/activity.js";
 import { toTodoDto, toTodoDetailDto } from "../lib/serialize.js";
 import { isLegalTransition, legalTargets, requiresUnblocked } from "../domain/transitions.js";
+import { nextDueDate } from "../domain/recurrence.js";
+import type { Recurrence } from "@shared/todo-schemas";
 
 const RELATION_INCLUDE = {
   dependencies: {
@@ -112,9 +114,43 @@ export async function updateTodo(id: string, input: UpdateTodo) {
     if (Object.keys(changed).length > 0) {
       await logActivity(tx, id, "updated", { changed });
     }
-    // M3 hooks here: a recurring todo transitioning to completed spawns its
-    // next occurrence inside this same transaction (D3).
+
+    // D3: completing a recurring todo spawns the next occurrence in this
+    // same transaction. Idempotency needs no extra machinery — the version
+    // guard above means a duplicate completion matches zero rows and 409s
+    // before ever reaching this point.
+    if (statusChanging && nextStatus === "completed" && after.recurrence) {
+      await spawnNextOccurrence(tx, after);
+    }
+
     return getTodoDetail(id, tx);
+  });
+}
+
+/** Create the next occurrence of a recurring todo (R-2.2, R-2.6). */
+async function spawnNextOccurrence(tx: Prisma.TransactionClient, completed: DbTodo) {
+  const recurrence = completed.recurrence as Recurrence;
+  const due = nextDueDate(recurrence, completed.dueDate, new Date());
+
+  // Same name/description/priority/recurrence; not_started; NO dependency
+  // links (A7) — dependencies describe one-time ordering.
+  const spawned = await tx.todo.create({
+    data: {
+      name: completed.name,
+      description: completed.description,
+      priority: completed.priority,
+      recurrence,
+      dueDate: due,
+    },
+  });
+
+  await logActivity(tx, completed.id, "spawned_next", {
+    nextId: spawned.id,
+    nextDue: due?.toISOString() ?? null,
+  });
+  await logActivity(tx, spawned.id, "created_from_recurrence", {
+    sourceId: completed.id,
+    name: spawned.name,
   });
 }
 
@@ -187,6 +223,38 @@ export async function restoreTodo(id: string) {
     await logActivity(tx, id, "restored", { status: restored.status });
     return toTodoDto(restored);
   });
+}
+
+/**
+ * A todo's event history, newest first (R-7.4). Works for soft-deleted
+ * todos too — the trail IS the record of what happened to them.
+ */
+export async function listActivities(id: string, page: number, pageSize: number) {
+  const exists = await prisma.todo.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) throw new NotFoundError();
+
+  const [items, total] = await Promise.all([
+    prisma.activity.findMany({
+      where: { todoId: id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.activity.count({ where: { todoId: id } }),
+  ]);
+
+  return {
+    items: items.map((a) => ({
+      id: a.id,
+      todoId: a.todoId,
+      type: a.type,
+      payload: a.payload,
+      createdAt: a.createdAt.toISOString(),
+    })),
+    total,
+    page,
+    pageSize,
+  };
 }
 
 /** Field-level old → new diff for the `updated` activity payload. */
