@@ -87,11 +87,16 @@ deliverables; M7 is stretch.
       blocked 🔒 + tooltip, inline "+ New" quick-add row, pagination
 - [ ] T-5.3 FilterBar (status, priority, due range, blocked) + sort controls — state in
       URL params so demo links are shareable
-- [ ] T-5.4 Create/edit modal: validation errors inline, recurrence editor, dependency
-      picker (search-select of existing todos; only enabled while the task is
-      not_started, per A11)
-- [ ] T-5.5 Row actions: start / complete / archive / delete / restore; 409 conflict and
-      blocked errors surfaced with reason [R-5.4]
+- [ ] T-5.4 Detail side panel (routed via ?selected=:id, Notion peek pattern): shared
+      create/edit form, inline validation from shared Zod schemas, recurrence editor,
+      dependency picker (search-select via q; enabled only while not_started per A11,
+      with hint otherwise), read-only dependents list, STALE_VERSION banner with reload
+- [ ] T-5.5 Row/panel actions driven by the R-1.8 table (menu shows only legal
+      transitions): start / complete / archive / delete-with-undo-toast; blocked 409
+      toast lists incomplete dependencies by name; recurring completion toast announces
+      the next occurrence [R-5.4]
+- [ ] T-5.5a /trash view: deleted-only list, Restore action, back link — makes soft
+      delete demoable in one click [R-1.5]
 - [ ] T-5.6 One Playwright E2E that IS the demo script: create two todos → add dependency
       → start blocked task rejected with visible reason → complete the dependency → start
       → complete → recurring next-occurrence appears. Runs against docker-compose stack

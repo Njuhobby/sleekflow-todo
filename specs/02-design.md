@@ -224,13 +224,118 @@ framework):
 - Quick-add: an inline "+ New" row at the list bottom (name only, Enter to create);
   the full modal is for editing details — mirrors Notion's add-row-then-open pattern.
 
-Single-page list + modal form. TanStack Query keys mirror API query params, so filter
-changes are cache-keyed refetches. Blocked rows show a 🔒 with tooltip listing incomplete
-dependencies, marking any that are archived — the two unblock paths (unarchive it, or
-drop the dependency) both start from the user seeing WHY it's blocked (data already in
-the list response — no N+1 requests). 409s surface as
-inline "reload" prompts. Pagination controls rather than virtualization — the server
-never sends more than one page (A9), so the DOM stays small by construction.
+### Pages and routing
+
+An SPA with two routes plus one URL-addressable panel — deliberately small:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  /                    main list (filters/sort/page in URL)   │
+│  /?…&selected=:id     same list + detail side panel open     │
+│  /trash               deleted todos, restore action          │
+└─────────────────────────────────────────────────────────────┘
+
+        ┌──────────┐   click row / "+ New"      ┌──────────────┐
+        │  / list  │ ──────────────────────────▶│ detail panel │
+        │          │ ◀────────────────────────── │ (selected=)  │
+        └────┬─────┘   Esc / ✕ / outside click  └──────────────┘
+             │  ▲
+   "Trash"   │  │  "← Back"
+             ▼  │
+        ┌──────────┐
+        │  /trash  │──── Restore ──▶ row returns to / (toast)
+        └──────────┘
+```
+
+- The detail panel is a **routed side panel** (`?selected=:id`), not a separate page:
+  the list stays visible behind it (Notion's peek pattern), and any todo is
+  link-addressable — useful in the demo.
+- ALL list state (filters, sort, page, search, selected) lives in the URL. Refresh,
+  back button, and pasting a link reproduce the exact view; component state stores
+  nothing the URL doesn't.
+- `/trash` is the same list component in deleted-only mode, row actions reduced to
+  Restore. It exists so soft delete (A5) is demoable in one click.
+
+### Main list — layout and TODO presentation
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  TODOs                                              [Trash] [+ New] │
+├────────────────────────────────────────────────────────────────────┤
+│  [Search…] [Status ▾] [Priority ▾] [Due ▾] [Blocked ▾]  Sort: Due ▾│
+├────────────────────────────────────────────────────────────────────┤
+│  ● In progress   Write weekly report ↻       high   Jul 10          │
+│  ○ Not started   Deploy staging  🔒          med    Jul 11    [⋯]   │
+│  ○ Not started   Review PR #42               low    —               │
+│  ✓ Completed     Set up CI                   med    Jul 07          │
+├────────────────────────────────────────────────────────────────────┤
+│  + New                                                              │
+├────────────────────────────────────────────────────────────────────┤
+│  142 todos  ·  ◀ Page 3 / 8 ▶                                       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Each row: status pill · name · recurring `↻` badge (tooltip: "every 2 weeks") ·
+blocked `🔒` (tooltip: incomplete dependencies by name, archived ones marked — the two
+unblock paths start from seeing WHY; data already in the list response, no N+1
+requests) · priority pill · due date (red when overdue and not completed) ·
+hover-revealed `[⋯]` menu offering exactly the legal transitions for that row's state
+(the R-1.8 table drives the menu — the UI never offers an edge the API would reject)
+plus Edit / Delete.
+
+Empty states: no todos at all → "Nothing here — add your first todo below"; filters
+match nothing → "No matches. [Clear filters]".
+
+### Detail panel (create and edit)
+
+One panel, two modes. "+ New" (full details) and row-click (edit) share the form;
+quick-add (name only, Enter) bypasses it entirely.
+
+```
+┌──────────────────────────────────────────────┐
+│  Write weekly report                      ✕  │  ← name, inline editable
+│  [In progress ▾]  [high ▾]  Due: [Jul 10]    │
+│──────────────────────────────────────────────│
+│  Description                                  │
+│  ┌──────────────────────────────────────────┐│
+│  │ …                                        ││
+│  └──────────────────────────────────────────┘│
+│  Recurrence   [weekly ▾] every [1] week(s)   │
+│  Dependencies (2)                  [+ add]    │  ← add = search-select via q param;
+│    ✓ Collect metrics        completed         │    enabled only while not_started,
+│    ○ Interview notes        not started       │    otherwise an A11 hint explains
+│  Blocking (1)                                 │  ← read-only dependents list
+│    ○ Send to leadership                       │
+│──────────────────────────────────────────────│
+│  [Start] [Complete] [Archive]      [Delete]  │  ← legal transitions only
+└──────────────────────────────────────────────┘
+```
+
+Validation errors render inline under fields — from the same shared Zod schemas the
+server enforces, so the two can't drift. The panel carries the todo's `version`; a
+STALE_VERSION 409 on save shows a banner "Changed by someone else — [Load latest]"
+instead of silently overwriting.
+
+### Key flows
+
+- **Create**: quick-add row (name, Enter) for speed; "+ New" opens the panel for
+  details. New rows appear via query invalidation — no optimistic inserts anywhere.
+- **Transition**: row menu or panel buttons → PATCH. A blocked 409 surfaces as a toast
+  listing the incomplete dependencies by name.
+- **Complete a recurring todo**: the success toast says "Next occurrence created — due
+  Jul 17", making R-2.2 visible in the demo without hunting the list.
+- **Delete → Undo**: delete shows a toast with Undo (~5s). Undo calls restore — the
+  soft-delete design gives the undo affordance for free (A5). Full recovery lives in
+  /trash.
+- **Any 409**: never silent — a toast or banner names the reason; version conflicts
+  offer reload. (R-5.4)
+
+### State management
+
+TanStack Query is the only server-state layer; its cache keys mirror the URL params
+one-to-one, so navigating IS cache addressing. No Redux/store — the URL plus the query
+cache hold everything. Pagination controls rather than virtualization: the server never
+sends more than one page (A9), so the DOM stays small by construction.
 
 ## Test strategy (maps to "meaningful scenarios, including edge cases")
 
