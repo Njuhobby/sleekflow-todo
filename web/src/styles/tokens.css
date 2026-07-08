@@ -1,0 +1,42 @@
+/* Design tokens — Notion-inspired (specs/02-design.md "Visual direction").
+   Content-first, minimal chrome: hairline borders over shadows, gray hover
+   washes over color changes, muted pastel pills. Overdue red is the only
+   red in the resting UI (display principle 1). */
+:root {
+  /* type */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  /* surfaces */
+  --bg: #ffffff;
+  --bg-panel: #fbfbfa;
+  --bg-hover: #f1f1ef;
+  --border: #e9e9e7;
+
+  /* text */
+  --text: #37352f;
+  --text-muted: #787774;
+  --text-faint: #9b9a97;
+
+  /* the one urgent color */
+  --overdue: #eb5757;
+
+  /* status pills (muted pastel bg + dark desaturated text) */
+  --pill-gray-bg: #f1f1ef;
+  --pill-gray-text: #57564f;
+  --pill-blue-bg: #e7f3f8;
+  --pill-blue-text: #2b6a83;
+  --pill-green-bg: #edf3ec;
+  --pill-green-text: #3c6255;
+  --pill-brown-bg: #f3eee8;
+  --pill-brown-text: #6d5f4b;
+
+  /* priority pills */
+  --pill-red-bg: #fbecec;
+  --pill-red-text: #a13c3c;
+  --pill-yellow-bg: #fbf3db;
+  --pill-yellow-text: #8a6d1f;
+
+  /* misc */
+  --radius: 6px;
+  --focus: #2b6a83;
+}
