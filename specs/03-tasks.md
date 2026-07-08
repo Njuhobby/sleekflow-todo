@@ -18,7 +18,10 @@ deliverables; M7 is stretch.
       query, error envelope) + error-code catalog; server and web both depend on it —
       no hand-copied types anywhere
 - [ ] T-1.2 POST /todos + GET /todos/:id [R-1.1, R-1.6, R-1.7]
-- [ ] T-1.3 PATCH /todos/:id with version check → 409 (D4) [R-1.3, R-6.1]
+- [ ] T-1.3 PATCH /todos/:id for non-status fields, with version check → 409 (D4).
+      Status changes are rejected until M2 wires the transition guard into this same
+      endpoint — avoids shipping an unguarded transition path in M1 and then reworking
+      its tests [R-1.3, R-6.1]
 - [ ] T-1.4 DELETE (soft) + POST /:id/restore [R-1.4, R-1.5]
 - [ ] T-1.5 Integration tests: happy paths, 400 validation matrix, 404s, stale-version
       409, restore on a non-deleted todo → 409
@@ -39,21 +42,27 @@ deliverables; M7 is stretch.
 - [ ] T-2.3 domain/transitions.ts: guard table + unit tests covering every edge of the
       R-1.8 state machine incl. reopen re-runs blocked guard, unarchive → not_started,
       illegal edges → 400 (D2) [R-1.8, R-3.4]
-- [ ] T-2.4 isBlocked computation in detail + list queries (D1) [R-3.3, R-3.5]
+- [ ] T-2.4 Wire status transitions into PATCH behind the guard (completes T-1.3);
+      isBlocked in the DETAIL response — the list-side isBlocked and blocked filter land
+      with T-4.2, once GET /todos exists (D1, D2) [R-3.3, R-3.5]
 - [ ] T-2.5 Integration: blocked → PATCH in_progress → 409 with dependency IDs; complete
-      the dependency → transition succeeds; deleting a dependency unblocks (edge gone); two
-      parallel requests (transition B vs reopen its dependency A) — the FOR SHARE lock
-      must serialize them so the R-3.4 invariant holds either way (D2)
+      the dependency → transition succeeds; deleting a dependency unblocks (edge gone);
+      concurrency: transition B vs reopen of its dependency A — driven deterministically
+      (open the reopen transaction, hold it, issue B's transition, assert it waits/409s,
+      commit) rather than firing parallel requests and hoping for the interleaving (D2)
       ✅ Gate: end-to-end blocked-flow test passes
 
 ## M3 — Recurrence [R-2]
 - [ ] T-3.1 domain/recurrence.ts: next-due-date math (use date-fns; its addMonths clamps
       month-end natively) + unit tests: daily/weekly/monthly, interval N, month-end clamp,
-      no-due-date fallback, overdue completion skips missed periods (k > 1) while keeping
+      undated task spawns undated occurrence, overdue completion skips missed periods (k > 1) while keeping
       the cadence anchor [R-2.1, R-2.2, R-2.3, R-2.5]
 - [ ] T-3.2 Completion hook in service: transactional spawn (D3) [R-2.2, R-2.6]
-- [ ] T-3.3 Integration: complete → exactly one new occurrence; parallel double-complete
-      race → still exactly one; archiving a recurring TODO does NOT spawn [R-2.4, R-1.8]
+- [ ] T-3.3 Integration: complete → exactly one new occurrence; double-complete race →
+      still exactly one, driven deterministically (both writers read the same version,
+      first UPDATE wins, second matches 0 rows → 409 — assert by construction, plus a
+      looped parallel-request smoke run); archiving a recurring TODO does NOT spawn
+      [R-2.4, R-1.8]
       ✅ Gate: race test passes — **this is the hardest test in the project, budget time**
 
 ## M4 — Listing at scale [R-4, R-6.3]
@@ -90,8 +99,9 @@ deliverables; M7 is stretch.
 ## M6 — Deliverables hardening
 - [ ] T-6.1 README: quickstart (docker compose up → seed → open), dev workflow, test matrix
 - [ ] T-6.2 Export openapi.json in CI; verify Swagger UI at /docs
-- [ ] T-6.3 docs/decision-log.md: distill from specs/ (interpretations table A1–A9, key
-      decisions D1–D6, cut list, more-time list)
+- [ ] T-6.3 docs/decision-log.md: final polish only — the log has been written
+      decision-by-decision since the spec review; trim to 1–2 pages, verify
+      cross-references to specs/ still hold, add the more-time list
 - [ ] T-6.4 Dockerfiles for api + web; compose runs the full stack
 - [ ] T-6.5 Demo dry run: fresh clone → running app, rehearse the blocked-flow and
       recurrence demo script

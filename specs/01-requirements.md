@@ -69,8 +69,9 @@ As a user, I can make a TODO recur so a fresh occurrence is created when I compl
 - R-2.2a A recurring TODO that is never completed SHALL NOT spawn occurrences on its own —
   it stays as a single overdue item (no background scheduler; matches mainstream TODO
   products and the brief's completion-triggered wording).
-- R-2.3 WHILE a recurring TODO has no due date, THE SYSTEM SHALL compute the next due date
-  from the completion time instead.
+- R-2.3 WHILE a recurring TODO has no due date, THE SYSTEM SHALL spawn the next
+  occurrence also without a due date — an undated series never silently converts into a
+  dated one anchored on an arbitrary completion timestamp.
 - R-2.4 WHEN the same completion request is retried (idempotency / double-click), THE
   SYSTEM SHALL NOT create duplicate occurrences.
 - R-2.5 Monthly edge case: WHEN the previous due date's day-of-month does not exist in the
