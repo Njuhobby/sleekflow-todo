@@ -1,0 +1,31 @@
+{
+  "name": "sleekflow-todo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TODO list web application — SleekFlow software engineer project",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "test": "npm run test --workspace server",
+    "test:perf": "npm run test:perf --workspace server",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^22.20.1",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
