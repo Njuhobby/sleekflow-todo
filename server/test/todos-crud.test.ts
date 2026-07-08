@@ -136,15 +136,20 @@ describe("PATCH /api/todos/:id", () => {
     });
   });
 
-  it("rejects status changes until the transition guard exists (T-1.3)", async () => {
+  it("status changes flow through PATCH behind the guard (T-2.4)", async () => {
     const created = await makeTodo(app);
     const res = await app.inject({
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, status: "in_progress" },
     });
-    expect(res.statusCode).toBe(400);
-    expect(json(res).error.code).toBe("VALIDATION");
+    expect(res.statusCode).toBe(200);
+    expect(json(res).status).toBe("in_progress");
+
+    const activity = await prisma.activity.findFirst({
+      where: { todoId: created.id, type: "status_changed" },
+    });
+    expect(activity?.payload).toEqual({ from: "not_started", to: "in_progress" });
   });
 
   it("can clear description, dueDate, and recurrence with null", async () => {
