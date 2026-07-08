@@ -209,6 +209,21 @@ write path (D2). Error envelope everywhere:
 Dev setup: Vite's dev server proxies `/api` to the Fastify port, so no CORS
 configuration is needed in either environment (prod serves the built SPA from the API).
 
+**Visual direction: Notion-inspired.** Not a clone — the discipline: content-first,
+minimal chrome, generous whitespace. Concretely (a single design-tokens CSS file, no UI
+framework):
+- System font stack (`-apple-system, "Segoe UI", …`), near-white background (`#ffffff`
+  body / `#fbfbfa` panels), primary text `#37352f`, muted `#787774`.
+- Hairline borders (`#e9e9e7`) and 4–6px radii instead of shadows; hover states are a
+  soft gray wash (`#f1f1ef`), not color changes.
+- Status and priority render as Notion-style pill tags: muted pastel backgrounds
+  (gray for not_started, blue for in_progress, green for completed, brown for archived;
+  red/yellow/gray for priority) with dark desaturated text.
+- Row actions (start/complete/delete/…) appear on hover, keeping the resting list quiet;
+  the blocked 🔒 and due date stay always-visible.
+- Quick-add: an inline "+ New" row at the list bottom (name only, Enter to create);
+  the full modal is for editing details — mirrors Notion's add-row-then-open pattern.
+
 Single-page list + modal form. TanStack Query keys mirror API query params, so filter
 changes are cache-keyed refetches. Blocked rows show a 🔒 with tooltip listing incomplete
 dependencies (data already in the list response — no N+1 requests). 409s surface as

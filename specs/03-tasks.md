@@ -81,7 +81,10 @@ deliverables; M7 is stretch.
 
 ## M5 — Web UI [R-5]
 - [ ] T-5.1 Vite scaffold, typed API client + TanStack Query hooks (shared Zod types)
-- [ ] T-5.2 List page: table, status/priority badges, blocked 🔒 + tooltip, pagination
+- [ ] T-5.1a Design tokens CSS (Notion-inspired palette, type, spacing — see 02-design
+      "Visual direction"); no UI framework
+- [ ] T-5.2 List page: table, status/priority pill tags, hover-revealed row actions,
+      blocked 🔒 + tooltip, inline "+ New" quick-add row, pagination
 - [ ] T-5.3 FilterBar (status, priority, due range, blocked) + sort controls — state in
       URL params so demo links are shareable
 - [ ] T-5.4 Create/edit modal: validation errors inline, recurrence editor, dependency
