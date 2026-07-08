@@ -94,6 +94,28 @@ export const TodoDetailSchema = TodoSchema.extend({
 });
 export type TodoDetail = z.infer<typeof TodoDetailSchema>;
 
+export const ActivitySchema = z.object({
+  id: z.string().uuid(),
+  todoId: z.string().uuid(),
+  type: z.string(),
+  payload: z.unknown(),
+  createdAt: z.string(),
+});
+export type Activity = z.infer<typeof ActivitySchema>;
+
+export const ActivityListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const ActivityListSchema = z.object({
+  items: z.array(ActivitySchema),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+export type ActivityList = z.infer<typeof ActivityListSchema>;
+
 export const ErrorEnvelopeSchema = z.object({
   error: z.object({
     code: z.string(),

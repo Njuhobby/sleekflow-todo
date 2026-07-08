@@ -8,6 +8,8 @@ import {
   IdParamSchema,
   TodoSchema,
   TodoDetailSchema,
+  ActivityListQuerySchema,
+  ActivityListSchema,
   ErrorEnvelopeSchema,
 } from "@shared/todo-schemas";
 import * as todoService from "../services/todo.service.js";
@@ -83,6 +85,18 @@ export async function todosRoutes(app: FastifyInstance) {
       await todoService.deleteTodo(req.params.id);
       return reply.status(204).send(null);
     },
+  });
+
+  r.route({
+    method: "GET",
+    url: "/todos/:id/activities",
+    schema: {
+      params: IdParamSchema,
+      querystring: ActivityListQuerySchema,
+      response: { 200: ActivityListSchema, 404: ErrorEnvelopeSchema },
+    },
+    handler: (req) =>
+      todoService.listActivities(req.params.id, req.query.page, req.query.pageSize),
   });
 
   r.route({
