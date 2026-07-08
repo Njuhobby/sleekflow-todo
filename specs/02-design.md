@@ -19,10 +19,14 @@ Traces to requirement IDs in `01-requirements.md`.
 ```
 sleekflow-todo/
 ├── specs/               # 01-requirements, 02-design, 03-tasks (this SDD trio)
-├── shared/              # workspace package: Zod schemas, inferred TS types, error-code
-│                        # catalog (TODO_BLOCKED, INVALID_TRANSITION, STALE_VERSION,
-│                        # DEPENDENCY_CYCLE, VALIDATION, NOT_FOUND) — single source for
-│                        # server validation and web display; no hand-copied types
+├── shared/              # plain folder (NOT a package): Zod schemas, inferred TS types,
+│                        # error-code catalog (TODO_BLOCKED, INVALID_TRANSITION,
+│                        # STALE_VERSION, DEPENDENCY_CYCLE, VALIDATION, NOT_FOUND).
+│                        # server and web import it via a @shared/* path alias
+│                        # (tsconfig paths + Vite resolve.alias) — single source of
+│                        # truth with zero packaging config; a source-only workspace
+│                        # package was considered and rejected as needless moving parts
+│                        # for this scope
 ├── server/
 │   ├── prisma/          # schema.prisma, migrations, seed.ts (10k seeder)
 │   └── src/

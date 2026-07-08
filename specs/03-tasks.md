@@ -14,9 +14,9 @@ deliverables; M7 is stretch.
       ✅ Gate: `docker compose up` + `npm test` green on a hello-world test
 
 ## M1 — Core CRUD [R-1]
-- [ ] T-1.1 shared/ workspace package: Zod schemas (enums, create/update bodies, list
-      query, error envelope) + error-code catalog; server and web both depend on it —
-      no hand-copied types anywhere
+- [ ] T-1.1 shared/ folder (imported via @shared/* path alias, no package.json): Zod
+      schemas (enums, create/update bodies, list query, error envelope) + error-code
+      catalog; server and web both import it — no hand-copied types anywhere
 - [ ] T-1.2 POST /todos + GET /todos/:id [R-1.1, R-1.6, R-1.7]
 - [ ] T-1.3 PATCH /todos/:id for non-status fields, with version check → 409 (D4).
       Status changes are rejected until M2 wires the transition guard into this same
