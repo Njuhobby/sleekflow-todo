@@ -36,3 +36,40 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: todo
+          POSTGRES_PASSWORD: todo
+          POSTGRES_DB: todo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U todo"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL_TEST: postgresql://todo:todo@localhost:5432/todo_test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: npx playwright test
+        working-directory: web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: web/test-results/

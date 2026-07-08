@@ -21,3 +21,4 @@ test-results/
 
 # Logs
 *.log
+.gstack/
