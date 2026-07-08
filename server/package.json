@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx --env-file=../.env prisma/seed.ts",
+    "test:perf": "tsx --env-file=../.env scripts/perf.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.5.0",
