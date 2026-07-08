@@ -11,6 +11,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { ErrorCodes } from "@shared/error-codes";
 import { AppError } from "./lib/errors.js";
 import { healthRoutes } from "./routes/health.routes.js";
+import { todosRoutes } from "./routes/todos.routes.js";
 
 export function buildApp() {
   const app = Fastify({
@@ -56,6 +57,7 @@ export function buildApp() {
   });
 
   app.register(healthRoutes, { prefix: "/api" });
+  app.register(todosRoutes, { prefix: "/api" });
 
   return app;
 }
