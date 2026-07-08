@@ -142,9 +142,15 @@ because the NFR names them and the cost was one locking pattern reused twice.
 the interview", so no hosting/deployment work is planned — docker-compose is the whole
 runtime story.
 
+**Stretch priority** (if core lands early): auth first (registration/login with actions
+attributed to users; the list stays shared per the NFR), then bulk operations, then
+cursor pagination. Real-time sync (SSE/WebSocket) is dropped entirely — low benefit for
+a TODO list, and consistency under concurrent edits is already guaranteed by the
+optimistic version check, so push would only add deploy and test surface.
+
 **Cut order under time pressure** (first to go → last; everything below the line is
 never cut):
-1. M7 stretch items (SSE real-time, bulk operations, cursor pagination)
+1. M7 stretch items (auth, bulk operations, cursor pagination)
 2. T-4.5 perf test (the 10k seed script stays — it's needed for manual verification)
 3. T-6.4 app Dockerfiles (Postgres compose service stays)
 4. T-5.6 Playwright E2E (falls back to a written manual demo checklist)

@@ -136,8 +136,12 @@ As a user, I can do all of the above from a browser.
 
 ## Out of scope (deliberately not built)
 
-- Authentication / registration, multi-tenancy — nice-to-have; single shared list is the brief's baseline.
-- Real-time sync (WebSocket/SSE) — cut to protect core quality; design leaves room for it.
-- Bulk operations, task groups.
-- Full iCal RRULE recurrence.
+- Real-time sync (WebSocket/SSE) — dropped: low benefit for a TODO list, and
+  consistency under concurrent edits is already guaranteed by optimistic versioning
+  (R-6.1); push would only add deployment and test surface.
+- Multi-tenancy / per-user lists — the brief's baseline is one shared list (NFR #1).
+- Task groups; full iCal RRULE recurrence.
 - Time zones: all dates handled as UTC date-times; per-user timezone handling logged as future work.
+
+Authentication and bulk operations are NOT out of scope — they are stretch goals,
+planned in priority order in `03-tasks.md` M7 (auth first).

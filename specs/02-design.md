@@ -24,9 +24,7 @@ sleekflow-todo/
 │                        # STALE_VERSION, DEPENDENCY_CYCLE, VALIDATION, NOT_FOUND).
 │                        # server and web import it via a @shared/* path alias
 │                        # (tsconfig paths + Vite resolve.alias) — single source of
-│                        # truth with zero packaging config; a source-only workspace
-│                        # package was considered and rejected as needless moving parts
-│                        # for this scope
+│                        # truth with zero packaging config
 ├── server/
 │   ├── prisma/          # schema.prisma, migrations, seed.ts (10k seeder)
 │   └── src/

@@ -106,10 +106,16 @@ deliverables; M7 is stretch.
 - [ ] T-6.5 Demo dry run: fresh clone → running app, rehearse the blocked-flow and
       recurrence demo script
 
-## M7 — Stretch (only if M0–M6 done)
-- [ ] T-7.1 Real-time list updates via SSE (single channel, invalidate-on-event)
+## M7 — Stretch (only if M0–M6 done; in priority order)
+- [ ] T-7.1 User registration + login (JWT). The list stays shared per the NFR; auth
+      attributes actions to users (created_by / completed_by) rather than partitioning
+      the list. Adds users table, register/login endpoints, auth middleware, UI forms
 - [ ] T-7.2 Bulk complete/delete with transactional guard reuse
 - [ ] T-7.3 Cursor pagination behind the same API shape
+
+Dropped from stretch entirely (eng-review decision): real-time sync (SSE/WebSocket) —
+low benefit for a TODO list; consistency under concurrent edits is already guaranteed
+by optimistic versioning, so real-time push would only add deploy/test surface.
 
 ## Suggested sequencing note
 
