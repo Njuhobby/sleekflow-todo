@@ -54,6 +54,10 @@ late, where does the next due date land?
 **User impact.** Coming back from a two-week holiday shows one overdue item per recurring
 task, and completing it schedules the next one on the original weekday/day-of-month.
 
+**Amendment.** A recurring task without a due date spawns occurrences that also have no
+due date — an undated series never silently converts into a dated one anchored on an
+arbitrary completion timestamp.
+
 ## DL-3 — Explicit status state machine with reopen support (2026-07-08)
 
 **Context.** The brief lists four statuses but never says which transitions are legal.
@@ -131,3 +135,21 @@ is explicitly a nice-to-have, so the baseline is an unauthenticated shared list.
 client retries), which is what the idempotent-completion and optimistic-version
 mechanisms cover; the rarer two-writer races (dependency guard, DL-1) are covered
 because the NFR names them and the cost was one locking pattern reused twice.
+
+## DL-7 — Scope guardrails: demo interpretation and cut order (2026-07-08)
+
+**Live demo = local.** The brief says to have "the application running locally before
+the interview", so no hosting/deployment work is planned — docker-compose is the whole
+runtime story.
+
+**Cut order under time pressure** (first to go → last; everything below the line is
+never cut):
+1. M7 stretch items (SSE real-time, bulk operations, cursor pagination)
+2. T-4.5 perf test (the 10k seed script stays — it's needed for manual verification)
+3. T-6.4 app Dockerfiles (Postgres compose service stays)
+4. T-5.6 Playwright E2E (falls back to a written manual demo checklist)
+5. UI conveniences: URL-synced filter state, restore-from-deleted view
+---
+Never cut: CRUD + soft delete/restore, dependencies with guard + locks, recurrence with
+idempotent spawn, list filters/sort/pagination at 10k, the simple UI over all of it,
+tests for the above, README, OpenAPI docs, this decision log.
