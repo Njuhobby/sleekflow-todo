@@ -190,6 +190,24 @@ endpoint, one read-only UI section.
 cleanly severable if time runs short. Without auth it records what happened, not who;
 actor attribution arrives automatically if M7 auth ships.
 
+## What I would do differently with more time
+
+- **Auth** (stretch #1, designed but unbuilt): JWT registration/login with actions
+  attributed to users — the list stays shared per the NFR; the activity trail gains
+  "who" for free.
+- **Cursor pagination** behind the same API shape — offset is measurably fine at 10k
+  but degrades linearly; cursors don't.
+- **Bulk operations** reusing the same guarded transaction path.
+- **Time zones**: everything is UTC today; per-user timezone rendering (and "due
+  Friday" semantics across DST) needs a real design pass.
+- **Full RRULE recurrence** if users need "last Friday of the month" — the recurrence
+  JSON field and the single pure date-math module were shaped so this swaps in without
+  schema or API changes.
+- **Component tests** for the panel's client-side states if the UI grows real logic
+  (optimistic updates, offline queue).
+- **Observability**: request metrics and slow-query logging before this meets real
+  traffic.
+
 ## Measured: 10k-row performance (2026-07-08)
 
 Seeded 10,000 todos (weighted statuses, ±90-day due dates, ~1,300 dependency edges,
