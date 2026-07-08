@@ -155,7 +155,15 @@ dependent) inside the same transaction that writes the links. O(V+E) on the reac
 subgraph — trivial at this scale. Detected cycle returns the path in the 400 body for
 a good error UX.
 
-Two rules keep the graph permanently clean (eng-review decisions):
+**Race protection (eng-review decision, same pattern as D2):** the dependency-write
+transaction first takes `SELECT … FOR SHARE` on all involved task rows (the dependent +
+every new dependency), **ordered by id** so two overlapping writers always acquire locks
+in the same order (no deadlock). Concurrent reverse-edge writes (A→B and B→A) therefore
+serialize, and the second transaction's cycle walk sees the first's committed edges →
+400. Without this, both DFS checks pass against pre-commit state and a permanent
+mutual-block cycle lands.
+
+Two further rules keep the graph permanently clean (eng-review decisions):
 - Dependency edits are rejected (409) unless the dependent task is `not_started` —
   "blocked but already in progress" states are impossible by construction, and the UI
   only offers the dependency picker on not-started tasks.

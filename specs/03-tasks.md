@@ -27,8 +27,11 @@ deliverables; M7 is stretch.
 ## M2 — Dependencies [R-3]
 - [ ] T-2.1 domain/dependency-graph.ts: cycle detection (pure) + unit tests: self, direct,
       transitive, diamond-is-legal, duplicate IDs deduplicated (D5) [R-3.1, R-3.2]
-- [ ] T-2.2 PUT /todos/:id/dependencies (transactional replace + cycle guard; deleted
-      target → 400; task not in not_started → 409) [R-3.1, R-3.2]
+- [ ] T-2.2 PUT /todos/:id/dependencies (transactional replace + ordered FOR SHARE lock
+      + cycle guard; deleted target → 400; task not in not_started → 409) [R-3.1, R-3.2]
+      Test: concurrent reverse-edge writes (A→B ∥ B→A) → exactly one succeeds, the
+      other gets 400 with the cycle path — driven deterministically (hold the first
+      transaction open, assert the second blocks, then commit)
 - [ ] T-2.2a Delete cascade: soft delete removes the task's dependency edges (both
       directions) in the same transaction; restore returns the task without links;
       tests: delete unblocks dependents, restore does not re-block them, restore can
