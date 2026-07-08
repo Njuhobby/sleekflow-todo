@@ -57,7 +57,8 @@ deliverables; M7 is stretch.
       ✅ Gate: race test passes — **this is the hardest test in the project, budget time**
 
 ## M4 — Listing at scale [R-4, R-6.3]
-- [ ] T-4.1 GET /todos filters: status[], priority[], due range, includeDeleted [R-4.1]
+- [ ] T-4.1 GET /todos filters: status[], priority[], due range, q (name substring,
+      ILIKE — also serves the dependency picker), includeDeleted [R-4.1]
 - [ ] T-4.2 blocked=true/false via EXISTS subquery (D1) [R-4.1]
 - [ ] T-4.3 Sorting (priority as ordinal, stable id tiebreak) + offset pagination with
       total (D6) [R-4.2, R-4.3]

@@ -92,13 +92,15 @@ Notes:
 Storing a `blocked` flag denormalizes state that changes as a *side effect* of other rows
 changing (completing task A unblocks B, C, D) — a classic consistency trap under concurrent
 writers. Instead:
-- Detail/list responses compute `isBlocked` via a LEFT JOIN against incomplete,
-  non-deleted dependencies.
+- Detail/list responses compute `isBlocked` from incomplete dependencies (edges only
+  ever reference live tasks, per R-1.4 delete cascade).
 - Filter `blocked=true/false` becomes an `EXISTS` / `NOT EXISTS` subquery — index-assisted,
   fine at 10k rows (verified in perf test, T-4.5).
 - The list response carries each row's incomplete dependencies (`{id, name}[]`) for the
-  blocked tooltip — fetched in the SAME query via aggregate JOIN. Per-row lookups (N+1)
-  are explicitly forbidden here; at pageSize 20 that would be 21 queries per page load.
+  blocked tooltip. Query budget: a **bounded** number of queries per page (Prisma
+  `include` batches relations — list + relations + count ≈ 3 queries regardless of row
+  count). Per-ROW lookups are forbidden; a single hand-written mega-query is not
+  required — bounded beats clever here.
 - Trade-off: slightly more complex list query vs zero cache-invalidation bugs. At this
   scale, correctness wins.
 
@@ -180,7 +182,8 @@ cost is negligible.
 
 ```
 GET    /api/todos                 list; query: status[], priority[], dueBefore, dueAfter,
-                                  blocked, includeDeleted, sortBy, order, page, pageSize
+                                  blocked, q (name ILIKE), includeDeleted, sortBy,
+                                  order, page, pageSize
 POST   /api/todos                 create
 GET    /api/todos/:id             detail (includes dependencies, dependents, isBlocked)
 PATCH  /api/todos/:id             partial update; body carries `version`; 409 on stale
