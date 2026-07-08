@@ -50,6 +50,13 @@ export function buildApp() {
         },
       });
     }
+    // Fastify's own client errors (malformed JSON, empty typed body, …)
+    // carry a 4xx statusCode — surface them as validation, not 500s.
+    if (typeof err.statusCode === "number" && err.statusCode < 500) {
+      return reply.status(err.statusCode).send({
+        error: { code: ErrorCodes.VALIDATION, message: err.message, details: null },
+      });
+    }
     app.log.error(err);
     return reply.status(500).send({
       error: { code: ErrorCodes.INTERNAL, message: "Internal server error", details: null },
