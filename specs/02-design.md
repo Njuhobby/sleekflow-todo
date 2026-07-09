@@ -122,7 +122,9 @@ No route can bypass it. This diagram also goes into a code comment in transition
               │                       ▲  (any non-archived) ──┘
               └── direct complete ────┘
 
-  ▸ edges into in_progress / completed run the blocked guard (R-3.4)
+  ▸ every transition must preserve the R-3.0 invariant ("in_progress only
+    while all dependencies are completed"): checked entering in_progress/
+    completed (R-3.4) and leaving completed (R-1.9)
   ▸ reopen of a recurring TODO does NOT retract the spawned next occurrence
   ▸ everything else → 400 INVALID_TRANSITION
 ```

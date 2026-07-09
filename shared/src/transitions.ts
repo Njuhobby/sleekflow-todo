@@ -14,9 +14,13 @@ import type { Status } from "./todo-schemas.js";
  *               │                       ▲  (any non-archived) ─┘
  *               └── direct complete ────┘
  *
- * Only edges INTO in_progress/completed run the blocked guard (R-3.4);
- * edges to not_started/archived are always free — guarding them would trap
- * a completed task forever once one of its dependencies got reopened (A10).
+ * Legality (this table) is necessary but not sufficient: every transition
+ * must also preserve the dependency INVARIANT (R-3.0) — "a task is
+ * in_progress only while all its dependencies are completed", at all times.
+ * The service checks it at two points: entering in_progress/completed
+ * (requiresUnblocked below) and leaving completed while dependents are
+ * actively working (R-1.9). Falling back to not_started can never violate
+ * the invariant, which is why it is always available.
  */
 const LEGAL_TRANSITIONS: Record<Status, readonly Status[]> = {
   not_started: ["in_progress", "completed", "archived"],

@@ -233,6 +233,15 @@ impossible-by-construction guarantee actually holds everywhere.
 crossfire with a simultaneously-starting dependent is resolved by Postgres deadlock
 detection, surfaced as a retryable 409.
 
+**Reframed (same day).** The cleaner statement of all of this is a single standing
+invariant, now recorded as R-3.0: *a task is in_progress only while all its
+dependencies are completed — at all times, not merely at transition time*. The brief
+phrases the rule transitionally; holding it as an invariant is what forced closing the
+reopen hole. R-3.4, R-1.9, and A11 are just the three checkpoints that preserve it.
+The earlier "backward edges are always free" wording is retired: its trap-avoidance
+rationale only ever justified the → not_started edge, which the invariant can indeed
+never object to.
+
 ## Measured: 10k-row performance (2026-07-08)
 
 Seeded 10,000 todos (weighted statuses, ±90-day due dates, ~1,300 dependency edges,

@@ -88,6 +88,16 @@ async function main() {
     const dependentIdx = 1 + Math.floor(Math.random() * (TOTAL - 1));
     const dependencyIdx = Math.floor(Math.random() * dependentIdx); // strictly earlier
     if (!live(dependentIdx) || !live(dependencyIdx)) continue;
+    // Only combinations the API itself can produce (A11 + A13): a started or
+    // finished dependent can only sit on a COMPLETED dependency.
+    const dependentStatus = statuses[dependentIdx]!;
+    const dependencyStatus = statuses[dependencyIdx]!;
+    if (
+      (dependentStatus === "in_progress" || dependentStatus === "completed") &&
+      dependencyStatus !== "completed"
+    ) {
+      continue;
+    }
     const key = `${dependentIdx}:${dependencyIdx}`;
     if (seen.has(key)) continue;
     seen.add(key);

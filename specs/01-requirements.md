@@ -23,7 +23,7 @@ be restated in the decision log.
 | A7 | Do recurring occurrences inherit dependencies? | No — the new occurrence is created without dependency links | Dependencies usually describe a one-time ordering; auto-copying can create permanently-blocked chains. Logged as a revisit-with-more-time item |
 | A8 | Cycles in dependencies | Rejected at write time (400 with the offending path) | A cycle makes every member permanently blocked; failing fast is the only sane behavior |
 | A9 | "10,000+ items without degrading UX" | Server-side pagination/filtering/sorting with DB indexes; UI never loads the full list | Client-side filtering of 10k rows is the anti-pattern this NFR exists to catch |
-| A10 | Legal status transitions unspecified | Explicit state machine incl. reopen and unarchive; the blocked guard applies ONLY to edges into `in_progress` and `completed` — edges to `not_started`/`archived` are always free | Mis-clicking "Complete" must be recoverable; nonsensical edges (archived → completed) rejected. Guarding backward edges would trap tasks in `completed` when a dependency gets reopened. Reopening a recurring TODO does not retract the already-spawned next occurrence |
+| A10 | Legal status transitions unspecified | Explicit state machine incl. reopen (completed → in_progress/not_started) and unarchive (archived → not_started); every transition must also preserve the dependency invariant (R-3.0) | Mis-clicking "Complete" must be recoverable; nonsensical edges (archived → completed) rejected. Reopening a recurring TODO does not retract the already-spawned next occurrence |
 
 ## R-1 TODO Management (CRUD)
 
@@ -52,10 +52,11 @@ As a user, I can create, view, update, and delete TODOs.
 - R-1.8 Legal status transitions (A10): `not_started ↔ in_progress`;
   `not_started | in_progress → completed`; `completed → in_progress | not_started`
   (reopen); any non-archived → `archived`; `archived → not_started` (unarchive).
-  All other transitions are rejected with 400. The blocked guard (R-3.4) applies only
-  to edges INTO `in_progress` or `completed`; edges to `not_started` or `archived` are
-  never guarded by the task's OWN dependencies. Reopening a completed recurring TODO
-  SHALL NOT retract the occurrence its completion spawned (R-2.2).
+  All other transitions are rejected with 400. Every transition must also preserve the
+  dependency invariant (R-3.0) — R-3.4 checks it when entering `in_progress`/`completed`,
+  R-1.9 when leaving `completed`; falling back to `not_started` can never violate it and
+  is therefore always available. Reopening a completed recurring TODO SHALL NOT retract
+  the occurrence its completion spawned (R-2.2).
 - R-1.9 WHEN a transition OUT of `completed` (to any target) is requested and at least
   one dependent is `in_progress`, THE SYSTEM SHALL reject it with 409 listing the
   active dependents. Dependents that are `completed` or `not_started` do not prevent
@@ -89,6 +90,14 @@ As a user, I can make a TODO recur so a fresh occurrence is created when I compl
 
 As a user, I can declare that a TODO depends on other TODOs and be prevented from starting
 it prematurely.
+
+- R-3.0 **INVARIANT (the iron law).** At ALL times — not merely at transition time —
+  a TODO may be `in_progress` only while EVERY dependency it has is `completed`.
+  The brief states this as a transition rule ("cannot be moved to In Progress until…");
+  we hold it as a standing invariant. Three checkpoints make every mutation preserve
+  it: R-3.4 (entering in_progress/completed), R-1.9 (taking a dependency out of
+  completed), and R-3.1/A11 (dependency edits only while not_started). Deletion
+  preserves it structurally (R-1.4 severs the edges).
 
 - R-3.1 WHEN dependencies are set on a TODO, THE SYSTEM SHALL accept a list of other TODO
   IDs; self-dependency is rejected with 400. Dependencies are editable ONLY while the
