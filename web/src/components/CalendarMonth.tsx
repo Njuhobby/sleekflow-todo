@@ -121,11 +121,34 @@ function CellItem({ item, onOpen }: { item: CalendarItem; onOpen: (id: string) =
       onClick={() => onOpen(item.id)}
       title={item.name}
     >
-      <span className={`cal-dot pill-${item.status}`} />
+      <StatusDot status={item.status} />
       <span className="calendar-item-name">
         {item.name}
         {item.isRecurring ? " ↻" : ""}
       </span>
     </button>
   );
+}
+
+/**
+ * Shape + color, never hue alone (8px of muted blue vs muted green is
+ * indistinguishable): hollow ring = not started, filled blue = in progress,
+ * green check = completed, filled brown = archived.
+ */
+function StatusDot({ status }: { status: CalendarItem["status"] }) {
+  if (status === "completed") {
+    return (
+      <svg className="cal-dot" viewBox="0 0 10 10" aria-hidden="true">
+        <path
+          d="M1.5 5.5l2.5 2.5 4.5-5.5"
+          fill="none"
+          stroke="var(--dot-completed)"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  return <span className={`cal-dot dot-${status}`} />;
 }

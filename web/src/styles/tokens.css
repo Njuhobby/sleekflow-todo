@@ -39,8 +39,8 @@
   /* status dots — saturated solids; the pastel pill BACKGROUNDS are
      illegible at 8px (they're designed to sit under dark text) */
   --dot-not_started: #9b9a97;
-  --dot-in_progress: #337ea9;
-  --dot-completed: #448361;
+  --dot-in_progress: #2383e2; /* bright Notion blue — the one "active" signal */
+  --dot-completed: #3a8159;
   --dot-archived: #9f8767;
 
   /* misc */

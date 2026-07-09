@@ -622,23 +622,26 @@ textarea {
   text-decoration: line-through;
 }
 .cal-dot {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   flex: none;
   padding: 0;
+  box-sizing: border-box;
 }
-.cal-dot.pill-not_started {
-  background: var(--dot-not_started);
+/* shape + color, never hue alone */
+.cal-dot.dot-not_started {
+  background: transparent;
+  border: 1.5px solid var(--dot-not_started); /* hollow: untouched */
 }
-.cal-dot.pill-in_progress {
-  background: var(--dot-in_progress);
+.cal-dot.dot-in_progress {
+  background: var(--dot-in_progress); /* filled: active */
 }
-.cal-dot.pill-completed {
-  background: var(--dot-completed);
-}
-.cal-dot.pill-archived {
+.cal-dot.dot-archived {
   background: var(--dot-archived);
+}
+svg.cal-dot {
+  border-radius: 0; /* the completed check */
 }
 .calendar-item-name {
   overflow: hidden;
