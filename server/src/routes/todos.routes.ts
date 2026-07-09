@@ -12,11 +12,14 @@ import {
   ActivityListSchema,
   ListTodosQuerySchema,
   TodoListSchema,
+  CalendarQuerySchema,
+  CalendarSchema,
   ErrorEnvelopeSchema,
 } from "@shared/todo-schemas";
 import * as todoService from "../services/todo.service.js";
 import { setDependencies } from "../services/dependency.service.js";
 import { listTodos } from "../services/list.service.js";
+import { getCalendar } from "../services/calendar.service.js";
 
 // Routes are thin: parse (Zod, from shared schemas) → service → DTO out.
 export async function todosRoutes(app: FastifyInstance) {
@@ -30,6 +33,16 @@ export async function todosRoutes(app: FastifyInstance) {
       response: { 200: TodoListSchema, 400: ErrorEnvelopeSchema },
     },
     handler: (req) => listTodos(req.query),
+  });
+
+  r.route({
+    method: "GET",
+    url: "/todos/calendar",
+    schema: {
+      querystring: CalendarQuerySchema,
+      response: { 200: CalendarSchema, 400: ErrorEnvelopeSchema },
+    },
+    handler: (req) => getCalendar(req.query),
   });
 
   r.route({

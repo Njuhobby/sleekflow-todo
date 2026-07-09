@@ -155,6 +155,38 @@ export const TodoListSchema = z.object({
 });
 export type TodoList = z.infer<typeof TodoListSchema>;
 
+/** Calendar aggregation (DL-13): per-day digests, never raw month dumps. */
+export const CalendarQuerySchema = z.object({
+  from: DueDateSchema,
+  to: DueDateSchema,
+  status: multi(StatusSchema),
+  priority: multi(PrioritySchema),
+  q: z.string().trim().min(1).max(255).optional(),
+});
+export type CalendarQuery = z.infer<typeof CalendarQuerySchema>;
+
+export const CalendarItemSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  status: StatusSchema,
+  priority: PrioritySchema,
+  isRecurring: z.boolean(),
+});
+export type CalendarItem = z.infer<typeof CalendarItemSchema>;
+
+export const CalendarDaySchema = z.object({
+  /** YYYY-MM-DD (UTC day) */
+  date: z.string(),
+  total: z.number().int(),
+  incomplete: z.number().int(),
+  /** Top 3: incomplete before completed, then priority high → low */
+  items: z.array(CalendarItemSchema),
+});
+export type CalendarDay = z.infer<typeof CalendarDaySchema>;
+
+export const CalendarSchema = z.object({ days: z.array(CalendarDaySchema) });
+export type Calendar = z.infer<typeof CalendarSchema>;
+
 export const ActivitySchema = z.object({
   id: z.string().uuid(),
   todoId: z.string().uuid(),
