@@ -725,6 +725,9 @@ svg.cal-dot {
   color: var(--text-faint);
   font-size: 13px;
 }
+.dep-add {
+  position: relative; /* anchors the floating picker dropdown */
+}
 .dep-add input {
   width: 100%;
   border: 1px dashed var(--border);
@@ -733,19 +736,34 @@ svg.cal-dot {
   background: var(--bg);
   font-size: 12.5px;
 }
+/* Combobox dropdown: floats OVER the layout (anchored to .dep-add), never
+   constrained by the narrow flow column it's launched from. */
 .picker-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(340px, 80vw);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  margin-top: 4px;
-  max-height: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-height: 220px;
   overflow-y: auto;
+  z-index: 35;
 }
 .picker-results .picker-item {
   padding: 5px 10px;
   cursor: pointer;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 .picker-results .picker-item:hover {
   background: var(--bg-hover);
+}
+.picker-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

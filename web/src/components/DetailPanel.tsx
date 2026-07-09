@@ -370,8 +370,10 @@ function DependencyFlow({
                         setSearch("");
                       }}
                     >
-                      <span>{t.name}</span>
-                      <StatusPill status={t.status} />
+                      <StatusDot status={t.status} />
+                      <span className="picker-name" title={t.name}>
+                        {t.name}
+                      </span>
                     </div>
                   ))}
                 </div>
