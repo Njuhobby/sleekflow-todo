@@ -335,7 +335,6 @@ function DependencyFlow({
   );
 
   const upstreamBlocks = draftDeps.some((d) => d.status !== "completed");
-  const downstreamWaits = todo.dependents.length > 0 && todo.status !== "completed";
 
   return (
     <div className="panel-section">
@@ -405,9 +404,10 @@ function DependencyFlow({
           <span className="dep-chip-name">{todo.name}</span>
         </div>
 
-        <div className="dep-arrow" title={downstreamWaits ? "These tasks wait for this one to complete" : undefined}>
-          {downstreamWaits ? "🔒" : "→"}
-        </div>
+        {/* No lock here on purpose: "downstream waits for completion" is the
+            DEFINITION of a dependency — a permanent marker would be noise,
+            and a lock reads as "this task is blocked", which it isn't. */}
+        <div className="dep-arrow">→</div>
 
         <div className="dep-col">
           <div className="dep-caption">Blocks</div>
