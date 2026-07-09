@@ -147,6 +147,12 @@ As a user, I can do all of the above from a browser.
 - R-5.4 WHEN the API rejects an action (blocked task, version conflict, validation), THE
   UI SHALL surface the reason to the user instead of failing silently.
 - R-5.5 Polish is explicitly out of scope; functional and usable is the bar.
+- R-5.7 A calendar view (month grid) as an alternative to the list (DL-13): each day
+  shows at most three tasks (incomplete before completed, then priority high → low)
+  plus an overflow count, fed by a per-day aggregation endpoint so the payload stays
+  ~31 rows at any list size (A9). Tasks open the detail panel; day numbers and
+  overflow jump to the list filtered to that day. Past days with unfinished tasks
+  wear the overdue red. Undated tasks don't appear.
 - R-5.6 The detail panel is ONE draft (A16): fields, dependency list, and status
   selection persist only on Save changes, committed as a single atomic request;
   Cancel (or closing the panel) discards. Save/Cancel appear only when the draft

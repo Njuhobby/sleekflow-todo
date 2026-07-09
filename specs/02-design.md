@@ -235,6 +235,9 @@ PUT    /api/todos/:id/dependencies  replace dependency list; body carries `versi
                                   (bumps it — a dependency change IS an edit); 400 on
                                   cycle/self/deleted-target, 409 on stale version or
                                   when the task is not `not_started` (A11)
+GET    /api/todos/calendar        per-day digests for the month grid (DL-13): top 3 +
+                                  totals via one window-function query; honors
+                                  status/priority/q filters
 GET    /api/todos/:id/activities  event history, newest-first, paginated (R-7)
 GET    /api/health                liveness + db ping
 GET    /docs                      Swagger UI
@@ -272,6 +275,9 @@ An SPA with two routes plus one URL-addressable panel — deliberately small:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  /                    main list (filters/sort/page in URL)   │
+│  /?view=calendar      month grid over the same data (DL-13); │
+│    &month=YYYY-MM     per-day top-3 + overflow, aggregated   │
+│                       server-side; filters still apply       │
 │  /?…&selected=:id     same list + detail side panel open     │
 │  /trash               deleted todos, restore action          │
 └─────────────────────────────────────────────────────────────┘

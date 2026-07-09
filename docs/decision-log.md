@@ -283,6 +283,32 @@ NEW set — and any rejection (cycle, blocked, stale version, invariant guard) l
 nothing applied. This superseded the panel's dependency undo toasts (same day):
 Cancel is the universal undo for drafts.
 
+## DL-13 — Calendar view, fed by a per-day aggregation endpoint (2026-07-09)
+
+**Context.** The list view is blind to time distribution — "how loaded is next week"
+takes mental arithmetic. A month calendar is the standard answer (Todoist, TickTick,
+Notion), and the list API's due-range filters meant most of the groundwork existed.
+
+**Decision.** A second view (`?view=calendar`), month grid. Each day cell shows at
+most three tasks plus a "+N more" overflow count — a cell physically fits no more.
+The three are chosen by *incomplete before completed, then priority high → low*: the
+calendar answers "what needs doing that day", so unfinished work always outranks
+finished. Clicking a task opens the detail panel; clicking the day number or the
+overflow jumps to the list view filtered to that day (`dueFrom=dueTo`). Past days
+with unfinished tasks get the overdue red on the day number — the "only red" rule
+extends naturally. Undated tasks simply don't appear.
+
+**The NFR-shaped choice: aggregate in the database.** Fetching a month of raw todos
+breaks A9 at scale (the seed alone puts ~1,600 in a month; the list API caps pages at
+100 for exactly this reason). Instead `GET /todos/calendar` returns per-day digests —
+top 3 via `ROW_NUMBER() OVER (PARTITION BY day ORDER BY …)` plus per-day totals in
+one SQL query — so the payload is ~31 rows regardless of how many todos exist.
+Grouping, sorting, and truncation happen where the data lives.
+
+**Scope.** Month view only; the calendar honors the status/priority/search filters
+(sort and blocked controls hide — they're list concepts). Day boundaries are UTC,
+consistent with the documented all-UTC stance.
+
 ## What I would do differently with more time
 
 - **Auth** (stretch #1, designed but unbuilt): JWT registration/login with actions

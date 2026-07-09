@@ -59,7 +59,9 @@ Measured at 10,000 rows: default list p95 **9 ms**, worst-case blocked filter p9
 - **Explicit status state machine** — reopen and unarchive supported; the UI action
   menus derive from the same transition table the server enforces
 - **Filtering/sorting/pagination** — all server-side; status/priority/due-range/
-  blocked/name search; stable pagination at 10k+ items
+  created-range/blocked/name search; stable pagination at 10k+ items
+- **Calendar view** — month grid fed by a per-day aggregation endpoint (top 3 per day
+  via a window function + totals), so the payload stays ~31 rows at any list size
 - **Soft delete** — delete severs dependency links and is undoable (toast Undo +
   a /trash view); restore can never re-block others or revive a cycle
 - **Activity trail** — every mutation appends an event in the same transaction;
