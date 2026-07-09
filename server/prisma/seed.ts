@@ -75,6 +75,20 @@ async function main() {
       };
     });
     await prisma.todo.createMany({ data: rows });
+    // The service layer writes a `created` activity with every insert; seeded
+    // rows must tell the same story or their timelines start mid-life.
+    await prisma.activity.createMany({
+      data: rows.map((r) => ({
+        todoId: r.id,
+        type: "created",
+        payload: {
+          name: r.name,
+          priority: r.priority,
+          dueDate: r.dueDate?.toISOString() ?? null,
+          recurrence: r.recurrence ?? null,
+        },
+      })),
+    });
     console.log(`Seeded todos ${batch * BATCH + 1}–${(batch + 1) * BATCH}`);
   }
 
@@ -111,6 +125,28 @@ async function main() {
   );
   const liveEdges = edges.filter((e) => !deleted.has(e.dependentId) && !deleted.has(e.dependencyId));
   await prisma.todoDependency.createMany({ data: liveEdges, skipDuplicates: true });
+
+  // Same story-consistency rule for the edges: one dependencies_changed
+  // activity per dependent, names snapshotted like the service does.
+  const nameById = new Map(
+    (await prisma.todo.findMany({ select: { id: true, name: true } })).map((t) => [t.id, t.name])
+  );
+  const byDependent = new Map<string, string[]>();
+  for (const e of liveEdges) {
+    const list = byDependent.get(e.dependentId);
+    if (list) list.push(e.dependencyId);
+    else byDependent.set(e.dependentId, [e.dependencyId]);
+  }
+  await prisma.activity.createMany({
+    data: [...byDependent.entries()].map(([dependentId, depIds]) => ({
+      todoId: dependentId,
+      type: "dependencies_changed",
+      payload: {
+        added: depIds.map((d) => ({ id: d, name: nameById.get(d) ?? "?" })),
+        removed: [],
+      },
+    })),
+  });
   console.log(`Seeded ${liveEdges.length} dependency edges`);
 
   console.log(`Done: ${await prisma.todo.count()} todos.`);
