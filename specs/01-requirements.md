@@ -18,6 +18,8 @@ be restated in the decision log.
 | A5 | "Data should not be permanently lost when deleted" | Soft delete (`deleted_at` timestamp) + restore endpoint. Deleting a TODO also permanently removes its dependency links (both directions, same transaction); restore brings the task back without them | The task's own data survives; severing links keeps other tasks' blocked state from being silently changed by a later restore, and makes cycle revival through restore structurally impossible |
 | A11 | Who can edit dependencies, when | Dependencies are editable only while the dependent task is `not_started`; to change dependencies of a started task, move it back to `not_started` first | Keeps "blocked but in progress" states structurally impossible instead of legislating their semantics; dependency graphs are decided before work starts |
 | A13 | Can a completed task be reopened (or archived) while others have started work on top of it? | No. Any transition OUT of `completed` is rejected (409) while some dependent is `in_progress` — the user first completes/pauses that dependent, or moves it back to `not_started` and breaks the dependency (A11), then reopens. Dependents that are `completed` (history) or `not_started` (they simply become blocked again) do not prevent it | Closes the one remaining path that could create "in progress on top of an incomplete foundation" — making A11's impossible-by-construction guarantee actually hold. Pulling a foundation out from under active work should be an explicit, acknowledged act, not a silent side effect |
+| A15 | What happens when a recurrence is ADDED to an already-completed TODO? | The next occurrence spawns immediately on save (first-time recurrence only; editing an existing recurrence never re-spawns). The panel warns before saving | The user's intent is "make this recur" — under pure event-driven semantics the recurrence would sit dormant until an unlikely reopen-and-recomplete, which reads as "I set it and nothing happened". The completion event has already occurred; honoring it late matches intuition |
+| A16 | When do detail-panel edits take effect? | Everything in the panel — fields, dependency list, status selection — is one local draft, committed atomically by Save changes (a single transaction; all-or-nothing). Cancel or closing the panel discards it. List-row quick actions remain instant | A mixed model (some edits draft, some instant) proved confusing in use — there was no way to back out of a dependency change. One rule for the whole panel is learnable; atomicity means a rejected save (cycle, blocked, stale version) leaves NOTHING half-applied |
 | A14 | Must TODO names be unique? | No — duplicates are allowed. Identity lives in the UUID; the name is a description, not a key | Uniqueness was considered and rejected: recurrence copies the name to each occurrence (R-2.2), so a completed "Weekly report" and its next not-started "Weekly report" legitimately coexist. Enforcing uniqueness would either break the spawn or force the system to rename the user's tasks (date/counter suffixes). Where duplicates could confuse — the dependency picker — results carry a status pill to disambiguate |
 | A12 | "Archived" is named in the brief but never defined | Archived = shelved, not finished: it does not satisfy dependencies (A4); archiving keeps dependency edges, so dependents stay blocked — the UI marks the blocker as "(archived)" so the user can unarchive it or (the dependent being necessarily `not_started`) drop the dependency; archiving a recurring TODO ends the series without spawning; unarchive returns to `not_started` (A10) | Unlike delete (which severs edges, DL-5), an archived task still exists — the fact that others were waiting on it stays true and visible, and the user decides how to resolve it. Silent unblocking would let work start whose prerequisite never happened. Archive is also the only way to terminate a recurring series without completing it |
 | A6 | "Multiple users … concurrently" with no auth requirement | Single shared list, no auth; conflicts handled via optimistic concurrency (version check → 409) | Auth is explicitly a nice-to-have; the NFR is about data integrity under concurrent writes, not identity |
@@ -86,6 +88,10 @@ As a user, I can make a TODO recur so a fresh occurrence is created when I compl
   target month (e.g. Jan 31 + 1 month), THE SYSTEM SHALL clamp to the last day of the
   target month.
 - R-2.6 The new occurrence SHALL NOT inherit dependency links. (A7)
+- R-2.7 WHEN a TODO that is already `completed` receives its FIRST recurrence (null →
+  set), THE SYSTEM SHALL spawn the next occurrence immediately in the same save.
+  Editing an existing recurrence never re-spawns — that completion already spawned
+  its successor. (A15)
 
 ## R-3 Task Dependencies
 
@@ -141,6 +147,10 @@ As a user, I can do all of the above from a browser.
 - R-5.4 WHEN the API rejects an action (blocked task, version conflict, validation), THE
   UI SHALL surface the reason to the user instead of failing silently.
 - R-5.5 Polish is explicitly out of scope; functional and usable is the bar.
+- R-5.6 The detail panel is ONE draft (A16): fields, dependency list, and status
+  selection persist only on Save changes, committed as a single atomic request;
+  Cancel (or closing the panel) discards. Save/Cancel appear only when the draft
+  differs from the server state. List-row quick actions stay instant.
 
 ## R-6 Non-Functional Requirements
 

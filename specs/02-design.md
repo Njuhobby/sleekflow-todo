@@ -222,7 +222,12 @@ GET    /api/todos                 list; query: status[], priority[], dueBefore, 
                                   deleted, sortBy, order, page, pageSize
 POST   /api/todos                 create
 GET    /api/todos/:id             detail (includes dependencies, dependents, isBlocked)
-PATCH  /api/todos/:id             partial update; body carries `version`; 409 on stale
+PATCH  /api/todos/:id             partial update + guarded status transition; may also
+                                  carry dependencyIds — the panel's atomic draft save:
+                                  fields, deps, and transition in ONE transaction,
+                                  deps applied against the CURRENT status (A11) before
+                                  the transition so the blocked guard judges the new
+                                  set; body carries `version`; 409 on stale
 DELETE /api/todos/:id             soft delete; removes its dependency edges (both
                                   directions) in the same transaction
 POST   /api/todos/:id/restore     undelete; comes back without dependency links
@@ -386,6 +391,14 @@ quick-add (name only, Enter) bypasses it entirely.
 └──────────────────────────────────────────────┘    targets carry a 🔒 hint
 ```
 
+**The panel is ONE draft (A16).** Fields, the dependency list, and the status
+selection all live in local state; Save changes commits them as a single PATCH in one
+transaction (all guards run inside; any rejection leaves nothing half-applied), Cancel
+or closing the panel discards them. Save/Cancel render only while the draft differs.
+The status flow strip marks a drafted target with a dashed ring; reachability always
+derives from the SERVER status, one hop. Adding a first-time recurrence to a completed
+task shows a warning that saving will immediately spawn the next occurrence (A15).
+
 Validation errors render inline under fields — from the same shared Zod schemas the
 server enforces, so the two can't drift. The panel carries the todo's `version`; a
 STALE_VERSION 409 on save shows a banner "Changed by someone else — [Load latest]"
@@ -395,8 +408,9 @@ instead of silently overwriting.
 
 - **Create**: quick-add row (name, Enter) for speed; "+ New" opens the panel for
   details. New rows appear via query invalidation — no optimistic inserts anywhere.
-- **Transition**: row menu or panel buttons → PATCH. A blocked 409 surfaces as a toast
-  listing the incomplete dependencies by name.
+- **Transition**: the list row menu fires an instant PATCH; in the panel it's part of
+  the draft and lands with Save. A blocked 409 surfaces as a toast listing the
+  incomplete dependencies by name (and, on save, leaves the whole draft unapplied).
 - **Complete a recurring todo**: the success toast says "Next occurrence created — due
   Jul 17", making R-2.2 visible in the demo without hunting the list.
 - **Delete → Undo**: delete shows a toast with Undo (~5s). Undo calls restore — the

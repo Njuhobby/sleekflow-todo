@@ -214,6 +214,42 @@ examined and rejected:
 indistinguishable same-name results; its rows carry a status pill to disambiguate,
 and adding a due-date subtitle is a one-line follow-up if it ever bites.
 
+## DL-11 — Adding a recurrence to a completed task spawns immediately (2026-07-09)
+
+**Context.** Under pure event-driven semantics (spawn fires on the transition to
+Completed), a recurrence added AFTER completion sat dormant until an unlikely
+reopen-and-recomplete. To the user this read as "I set it and nothing happened".
+
+**Decision.** A first-time recurrence (null → set) saved onto an already-completed
+task spawns the next occurrence right away, in the same transaction. The user's
+intent — "make this recur" — outweighs the purity of the event model; the completion
+event has already happened, we honor it late. Editing an EXISTING recurrence never
+re-spawns (that completion already produced its successor — re-spawning on every
+interval tweak would duplicate). The panel warns before such a save: "this task is
+already completed — saving will immediately create the next occurrence."
+
+## DL-12 — The detail panel is one atomic draft (2026-07-09)
+
+**Context.** The panel originally mixed two interaction models: fields were
+draft-and-Save, while dependency edits and status changes applied instantly. Undo
+toasts were added to soften the instant side — but the mix stayed confusing: there
+was no Cancel, and "which edits are live?" had to be learned per section.
+
+**Decision (user-driven).** One rule for the whole panel: everything — fields, the
+dependency list, the status selection — is a local draft. Save changes commits it
+atomically; Cancel (or closing the panel) discards it; the buttons only render while
+the draft differs from the server. List-row quick actions stay instant: a row menu is
+a command surface, the panel is an editing surface.
+
+**Atomicity is the hard requirement.** Sequencing the old two endpoints from the
+client would allow half-applied saves. Instead PATCH gained an optional
+`dependencyIds`, applied in the SAME transaction as fields and the status transition:
+dependencies are judged against the current status (A11) and applied first, so
+"add dependencies and start" works in one save with the blocked guard evaluating the
+NEW set — and any rejection (cycle, blocked, stale version, invariant guard) leaves
+nothing applied. This superseded the panel's dependency undo toasts (same day):
+Cancel is the universal undo for drafts.
+
 ## What I would do differently with more time
 
 - **Auth** (stretch #1, designed but unbuilt): JWT registration/login with actions
