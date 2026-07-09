@@ -20,9 +20,11 @@ interface Props {
   id: string;
   onClose: () => void;
   onNavigate: (id: string) => void;
+  /** Present when the user navigated here through a dependency link. */
+  onBack?: (() => void) | null;
 }
 
-export function DetailPanel({ id, onClose, onNavigate }: Props) {
+export function DetailPanel({ id, onClose, onNavigate, onBack = null }: Props) {
   const { data: todo, refetch } = useTodoDetail(id);
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
@@ -30,11 +32,20 @@ export function DetailPanel({ id, onClose, onNavigate }: Props) {
         <Dialog.Overlay className="panel-overlay" />
         <Dialog.Content className="panel" aria-describedby={undefined}>
           <Dialog.Title style={{ display: "none" }}>Todo details</Dialog.Title>
-          <Dialog.Close asChild>
-            <button className="btn-ghost panel-close" aria-label="Close">
-              ✕
-            </button>
-          </Dialog.Close>
+          <div className="panel-topbar">
+            {onBack ? (
+              <button className="btn-ghost" aria-label="Back to previous task" onClick={onBack}>
+                ← Back
+              </button>
+            ) : (
+              <span />
+            )}
+            <Dialog.Close asChild>
+              <button className="btn-ghost" aria-label="Close">
+                ✕
+              </button>
+            </Dialog.Close>
+          </div>
           {todo ? (
             <PanelBody
               key={`${todo.id}:${todo.version}`}

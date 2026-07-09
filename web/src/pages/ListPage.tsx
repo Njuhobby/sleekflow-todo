@@ -25,6 +25,28 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
     setParams(next);
   };
 
+  // In-panel navigation trail: following dependency links pushes the current
+  // task; ← pops back. Opening from the list starts a fresh trail.
+  const [trail, setTrail] = useState<string[]>([]);
+  const openFromList = (id: string) => {
+    setTrail([]);
+    setSelected(id);
+  };
+  const navigateFromPanel = (id: string) => {
+    if (selected) setTrail((t) => [...t, selected]);
+    setSelected(id);
+  };
+  const goBack = () => {
+    const prev = trail[trail.length - 1];
+    if (!prev) return;
+    setTrail((t) => t.slice(0, -1));
+    setSelected(prev);
+  };
+  const closePanel = () => {
+    setTrail([]);
+    setSelected(null);
+  };
+
   const page = Number(params.get("page") ?? 1);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const setPage = (p: number) => {
@@ -60,13 +82,13 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
       {!trashMode && <FilterBar calendarMode={calendarView} />}
 
       {calendarView ? (
-        <CalendarMonth onOpen={(id) => setSelected(id)} />
+        <CalendarMonth onOpen={openFromList} />
       ) : isLoading ? (
         <div className="empty-state">Loading…</div>
       ) : data && data.total === 0 && !trashMode && !hasActiveFilters(params) ? (
         <div className="empty-state">Nothing here — add your first todo below.</div>
       ) : (
-        <TodoTable items={data?.items ?? []} onOpen={(id) => setSelected(id)} trashMode={trashMode} />
+        <TodoTable items={data?.items ?? []} onOpen={openFromList} trashMode={trashMode} />
       )}
 
       {!trashMode && !calendarView && <QuickAdd />}
@@ -99,8 +121,9 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
       {selected && (
         <DetailPanel
           id={selected}
-          onClose={() => setSelected(null)}
-          onNavigate={(id) => setSelected(id)}
+          onClose={closePanel}
+          onNavigate={navigateFromPanel}
+          onBack={trail.length > 0 ? goBack : null}
         />
       )}
     </div>
