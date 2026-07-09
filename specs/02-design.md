@@ -378,8 +378,12 @@ quick-add (name only, Enter) bypasses it entirely.
 │   · Status: not started → in progress     11:30
 │   · Created                            Jul 7
 │──────────────────────────────────────────────│
-│  [Start] [Complete] [Archive]      [Delete]  │  ← legal transitions only
-└──────────────────────────────────────────────┘
+│  Status                                       │  ← the whole state machine as
+│   Not started → (In progress) → Completed │   │    a flow strip: current status
+│                                    Archived   │    highlighted, reachable ones
+│──────────────────────────────────────────────│    are buttons, unreachable ones
+│                              [Save changes]  │    dimmed inert text; guarded
+└──────────────────────────────────────────────┘    targets carry a 🔒 hint
 ```
 
 Validation errors render inline under fields — from the same shared Zod schemas the

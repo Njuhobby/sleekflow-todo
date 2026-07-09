@@ -2,7 +2,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { useMemo, useState } from "react";
 import type { Activity, Recurrence, Status, TodoDetail } from "@shared/todo-schemas";
 import { UpdateTodoSchema } from "@shared/todo-schemas";
-import { legalTargets } from "@shared/transitions";
 import { ApiError } from "../api/client.js";
 import {
   useActivities,
@@ -16,9 +15,9 @@ import {
   formatDateTime,
   isoToLocalInput,
   localInputToIso,
-  transitionLabel,
 } from "../lib/labels.js";
 import { StatusPill } from "./pills.js";
+import { StatusFlow } from "./StatusFlow.js";
 import { describeError } from "./TodoTable.js";
 import { useToast } from "./toast.js";
 
@@ -206,16 +205,12 @@ function PanelBody({
 
       <ActivitySection todoId={todo.id} />
 
+      <div className="panel-section">
+        <h3>Status</h3>
+        <StatusFlow todo={todo} onTransition={transition} />
+      </div>
+
       <div className="panel-footer">
-        {legalTargets(todo.status).map((to) => (
-          <button
-            key={to}
-            className={to === "completed" ? "btn btn-primary" : "btn"}
-            onClick={() => transition(to)}
-          >
-            {transitionLabel(todo.status, to)}
-          </button>
-        ))}
         <div style={{ flex: 1 }} />
         <button className="btn" disabled={!dirty || update.isPending} onClick={save}>
           Save changes

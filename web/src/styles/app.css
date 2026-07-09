@@ -449,6 +449,53 @@ textarea {
   margin-top: 18px;
   padding-top: 14px;
 }
+
+/* --- status flow strip ------------------------------------------------ */
+.status-flow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.flow-node {
+  font-size: 12.5px;
+  border-radius: 999px;
+  padding: 3px 12px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.flow-current {
+  border: 1.5px solid currentColor; /* pill color ring: "you are here" */
+  font-weight: 600;
+  cursor: default;
+}
+.flow-target {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.flow-target:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-style: solid;
+  border-color: var(--text-faint);
+}
+.flow-off {
+  color: var(--text-faint);
+  opacity: 0.55;
+  padding: 3px 6px;
+}
+.flow-arrow {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.flow-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
 .picker-results {
   border: 1px solid var(--border);
   border-radius: var(--radius);
