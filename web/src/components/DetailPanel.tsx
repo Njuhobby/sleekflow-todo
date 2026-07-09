@@ -137,9 +137,8 @@ function PanelBody({
       { id: todo.id, ...parsed.data },
       {
         onSuccess: () => {
-          if ((draftStatus === "completed" && recurrence) || willSpawnOnSave) {
-            toast.info("Next occurrence created");
-          }
+          const spawned = (draftStatus === "completed" && recurrence) || willSpawnOnSave;
+          toast.info(spawned ? "Saved — next occurrence created" : "Changes saved");
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "STALE_VERSION") setStale(true);
