@@ -142,12 +142,15 @@ test("the login gate: anonymous users see the form, registering enters the app",
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Create account" }).click();
 
-  // in: the list renders and the header shows who we are
+  // in: the list renders and the avatar identifies us
   await expect(page.getByLabel("Quick add todo")).toBeVisible();
-  await expect(page.locator(".user-chip")).toContainText("Form Tester");
+  const avatar = page.getByRole("button", { name: "Account: Form Tester" });
+  await expect(avatar).toHaveText("FT"); // initials
 
-  // log out → back to the gate
-  await page.getByRole("button", { name: "Log out" }).click();
+  // log out via the account menu → back to the gate
+  await avatar.click();
+  await expect(page.getByText("Form Tester", { exact: true })).toBeVisible(); // menu label
+  await page.getByRole("menuitem", { name: "Log out" }).click();
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
 });
 

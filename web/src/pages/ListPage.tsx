@@ -1,3 +1,4 @@
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCreateTodo, useLogout, useMe, useTodos } from "../api/hooks.js";
@@ -131,17 +132,48 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
   );
 }
 
+/** Initials avatar opening the account menu (name/email + Log out). */
 function UserChip() {
   const me = useMe();
   const logout = useLogout();
   if (!me.data) return null;
+
+  const initials = me.data.name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  // deterministic muted color per name
+  const hash = [...me.data.name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const AVATAR_COLORS = ["#2b6a83", "#3a8159", "#8a6d1f", "#9f8767", "#a13c3c", "#57564f"];
+  const bg = AVATAR_COLORS[hash % AVATAR_COLORS.length];
+
   return (
-    <span className="user-chip" title={me.data.email}>
-      {me.data.name}
-      <button className="btn-ghost" onClick={() => logout.mutate()}>
-        Log out
-      </button>
-    </span>
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          className="avatar-btn"
+          style={{ background: bg }}
+          aria-label={`Account: ${me.data.name}`}
+          title={me.data.name}
+        >
+          {initials}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="menu-content" align="end" sideOffset={6}>
+          <div className="menu-label">
+            <div className="menu-label-name">{me.data.name}</div>
+            <div className="hint">{me.data.email}</div>
+          </div>
+          <DropdownMenu.Separator className="menu-separator" />
+          <DropdownMenu.Item className="menu-item" onSelect={() => logout.mutate()}>
+            Log out
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

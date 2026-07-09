@@ -543,13 +543,29 @@ textarea {
   margin-top: 14px;
   padding: 7px;
 }
-.user-chip {
+.avatar-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.avatar-btn:hover {
+  filter: brightness(1.1);
+}
+.menu-label {
+  padding: 6px 10px 4px;
   font-size: 13px;
-  color: var(--text-muted);
-  margin-right: 4px;
+}
+.menu-label-name {
+  font-weight: 600;
 }
 
 /* --- calendar view ---------------------------------------------------- */
