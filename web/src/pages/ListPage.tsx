@@ -37,7 +37,10 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
   return (
     <div className="container">
       <header className="page-header">
-        <h1>{trashMode ? "Trash" : "TODOs"}</h1>
+        <div className="header-left">
+          <h1>{trashMode ? "Trash" : "TODOs"}</h1>
+          {!trashMode && <ViewSwitcher calendarView={calendarView} />}
+        </div>
         <div className="header-actions">
           {trashMode ? (
             <Link to="/" className="btn">
@@ -45,7 +48,6 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
             </Link>
           ) : (
             <>
-              <ViewSwitcher calendarView={calendarView} />
               <Link to="/trash" className="btn">
                 Trash
               </Link>
@@ -105,6 +107,7 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
   );
 }
 
+/** Segmented icon toggle (the Notion/Linear pattern), next to the title. */
 function ViewSwitcher({ calendarView }: { calendarView: boolean }) {
   const [params, setParams] = useSearchParams();
   const setView = (calendar: boolean) => {
@@ -118,11 +121,49 @@ function ViewSwitcher({ calendarView }: { calendarView: boolean }) {
   };
   return (
     <span className="view-switcher" role="group" aria-label="View">
-      <button className={`chip ${!calendarView ? "active" : ""}`} onClick={() => setView(false)}>
-        List
+      <button
+        className={`view-btn ${!calendarView ? "active" : ""}`}
+        onClick={() => setView(false)}
+        aria-label="List view"
+        title="List view"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M5.5 4h8M5.5 8h8M5.5 12h8"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <circle cx="2.5" cy="4" r="1" fill="currentColor" />
+          <circle cx="2.5" cy="8" r="1" fill="currentColor" />
+          <circle cx="2.5" cy="12" r="1" fill="currentColor" />
+        </svg>
       </button>
-      <button className={`chip ${calendarView ? "active" : ""}`} onClick={() => setView(true)}>
-        Calendar
+      <button
+        className={`view-btn ${calendarView ? "active" : ""}`}
+        onClick={() => setView(true)}
+        aria-label="Calendar view"
+        title="Calendar view"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <rect
+            x="2"
+            y="3"
+            width="12"
+            height="11"
+            rx="1.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <path d="M2 6.5h12" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M5.5 1.5v2.5M10.5 1.5v2.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
     </span>
   );

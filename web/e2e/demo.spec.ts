@@ -114,7 +114,7 @@ test("the interview demo script", async ({ page }) => {
 
 test("calendar view renders the month grid and round-trips to the list", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Calendar" }).click();
+  await page.getByRole("button", { name: "Calendar view" }).click();
 
   const calendar = page.getByTestId("calendar");
   await expect(calendar).toBeVisible();
@@ -122,7 +122,7 @@ test("calendar view renders the month grid and round-trips to the list", async (
   // today's cell is marked
   await expect(page.locator(".calendar-today")).toHaveCount(1);
 
-  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("button", { name: "List view" }).click();
   await expect(page.getByTestId("calendar")).toHaveCount(0);
   await expect(page.getByLabel("Quick add todo")).toBeVisible();
 });

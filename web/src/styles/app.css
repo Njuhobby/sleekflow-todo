@@ -501,10 +501,36 @@ textarea {
 }
 
 /* --- calendar view ---------------------------------------------------- */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
 .view-switcher {
   display: inline-flex;
-  gap: 4px;
-  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.view-btn {
+  border: none;
+  background: var(--bg);
+  color: var(--text-faint);
+  padding: 5px 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.view-btn + .view-btn {
+  border-left: 1px solid var(--border);
+}
+.view-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.view-btn.active {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .calendar-nav {
   display: flex;
