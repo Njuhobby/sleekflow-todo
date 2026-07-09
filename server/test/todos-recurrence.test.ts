@@ -159,6 +159,53 @@ describe("recurrence spawning (R-2.2, D3)", () => {
     await complete(todo.id, 1);
     expect(await prisma.todo.count()).toBe(1);
   });
+
+  it("giving a completed todo its FIRST recurrence spawns immediately (A15)", async () => {
+    const todo = await makeTodo(app); // no recurrence
+    await complete(todo.id, 1); // completes, spawns nothing
+    expect(await prisma.todo.count()).toBe(1);
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${todo.id}`,
+      payload: { version: 2, recurrence: WEEKLY },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const spawned = await prisma.todo.findMany({ where: { id: { not: todo.id } } });
+    expect(spawned).toHaveLength(1);
+    expect(spawned[0]!).toMatchObject({ status: "not_started", recurrence: WEEKLY });
+
+    const activity = await prisma.activity.findFirst({
+      where: { todoId: todo.id, type: "spawned_next" },
+    });
+    expect(activity).not.toBeNull();
+  });
+
+  it("EDITING an existing recurrence on a completed todo does not re-spawn", async () => {
+    const todo = await makeTodo(app, { recurrence: WEEKLY });
+    await complete(todo.id, 1); // spawns #1
+    expect(await prisma.todo.count()).toBe(2);
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${todo.id}`,
+      payload: { version: 2, recurrence: { frequency: "monthly", interval: 1 } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(await prisma.todo.count()).toBe(2); // still just the one spawn
+  });
+
+  it("recurrence added to a NON-completed todo stays dormant", async () => {
+    const todo = await makeTodo(app);
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${todo.id}`,
+      payload: { version: 1, recurrence: WEEKLY },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(await prisma.todo.count()).toBe(1);
+  });
 });
 
 describe("GET /api/todos/:id/activities (R-7)", () => {

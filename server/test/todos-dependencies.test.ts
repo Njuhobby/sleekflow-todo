@@ -219,6 +219,93 @@ describe("the blocked guard (R-3.4)", () => {
   });
 });
 
+describe("atomic draft save — PATCH with dependencyIds", () => {
+  it("applies fields, dependencies, and a transition in one transaction", async () => {
+    const dep = await makeTodo(app, { name: "dep" });
+    await patchStatus(dep.id, 1, "completed");
+    const t = await makeTodo(app, { name: "T" });
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${t.id}`,
+      payload: {
+        version: 1,
+        name: "T renamed",
+        dependencyIds: [dep.id],
+        status: "in_progress",
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const detail = json(res);
+    expect(detail).toMatchObject({ name: "T renamed", status: "in_progress" });
+    expect(detail.dependencies).toEqual([{ id: dep.id, name: "dep", status: "completed" }]);
+  });
+
+  it("rolls back EVERYTHING when one part fails (blocked guard on the new deps)", async () => {
+    const dep = await makeTodo(app, { name: "incomplete dep" });
+    const t = await makeTodo(app, { name: "T" });
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${t.id}`,
+      payload: {
+        version: 1,
+        name: "should not persist",
+        dependencyIds: [dep.id],
+        status: "in_progress",
+      },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(json(res).error.code).toBe("TODO_BLOCKED");
+
+    // nothing happened: no rename, no edges, version untouched
+    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${t.id}` }));
+    expect(detail).toMatchObject({ name: "T", version: 1, status: "not_started" });
+    expect(detail.dependencies).toEqual([]);
+  });
+
+  it("dependency changes ride the version guard (deps-only PATCH bumps once)", async () => {
+    const dep = await makeTodo(app, { name: "dep" });
+    const t = await makeTodo(app, { name: "T" });
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${t.id}`,
+      payload: { version: 1, dependencyIds: [dep.id] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(json(res).version).toBe(2);
+
+    const stale = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${t.id}`,
+      payload: { version: 1, dependencyIds: [] },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(json(stale).error.code).toBe("STALE_VERSION");
+  });
+
+  it("dependencies are judged against the CURRENT status, not the drafted one (A11)", async () => {
+    const dep = await makeTodo(app, { name: "dep" });
+    const t = await makeTodo(app, { name: "T" });
+    await patchStatus(t.id, 1, "in_progress");
+
+    // draft says "back to not_started AND change deps" — deps apply first,
+    // against in_progress → rejected, whole save rolls back
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/todos/${t.id}`,
+      payload: { version: 2, dependencyIds: [dep.id], status: "not_started" },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(json(res).error.code).toBe("DEPENDENCY_EDIT_INVALID_STATUS");
+    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${t.id}` }));
+    expect(detail.status).toBe("in_progress");
+  });
+});
+
 describe("leaving completed with dependents (R-1.9, A13)", () => {
   /** A completed, B depends on A. Returns [a, b] with fresh versions. */
   async function setup() {

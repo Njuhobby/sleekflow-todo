@@ -8,6 +8,7 @@ import { logActivity } from "../lib/activity.js";
 import { toTodoDto, toTodoDetailDto } from "../lib/serialize.js";
 import { isLegalTransition, legalTargets, requiresUnblocked } from "../domain/transitions.js";
 import { nextDueDate } from "../domain/recurrence.js";
+import { applyDependencyChange } from "./dependency.service.js";
 import type { Recurrence } from "@shared/todo-schemas";
 
 const RELATION_INCLUDE = {
@@ -69,22 +70,31 @@ export async function getTodoDetail(id: string, client: Prisma.TransactionClient
 }
 
 export async function updateTodo(id: string, input: UpdateTodo) {
-  const { version, status: nextStatus, ...changes } = input;
+  const { version, status: nextStatus, dependencyIds, ...changes } = input;
 
   return prisma.$transaction(async (tx) => {
     const before = await tx.todo.findUnique({ where: { id } });
     if (!before || before.deletedAt) throw new NotFoundError();
 
     const statusChanging = nextStatus !== undefined && nextStatus !== before.status;
+    if (statusChanging && !isLegalTransition(before.status, nextStatus)) {
+      throw new AppError(
+        400,
+        ErrorCodes.INVALID_TRANSITION,
+        `Cannot move a TODO from ${before.status} to ${nextStatus}`,
+        { from: before.status, to: nextStatus, legalTargets: legalTargets(before.status) }
+      );
+    }
+
+    // The panel's atomic draft save: dependencies apply first, against the
+    // CURRENT status (A11), so "set deps + start" works in one request and
+    // the blocked guard below judges the NEW dependency set. Any failure
+    // rolls back everything.
+    if (dependencyIds !== undefined) {
+      await applyDependencyChange(tx, before, dependencyIds);
+    }
+
     if (statusChanging) {
-      if (!isLegalTransition(before.status, nextStatus)) {
-        throw new AppError(
-          400,
-          ErrorCodes.INVALID_TRANSITION,
-          `Cannot move a TODO from ${before.status} to ${nextStatus}`,
-          { from: before.status, to: nextStatus, legalTargets: legalTargets(before.status) }
-        );
-      }
       if (requiresUnblocked(nextStatus)) await assertUnblocked(tx, id);
       // A13/R-1.9: leaving completed pulls the foundation out from under
       // dependents — refuse while any of them is actively in progress.
@@ -123,6 +133,19 @@ export async function updateTodo(id: string, input: UpdateTodo) {
     // guard above means a duplicate completion matches zero rows and 409s
     // before ever reaching this point.
     if (statusChanging && nextStatus === "completed" && after.recurrence) {
+      await spawnNextOccurrence(tx, after);
+    }
+
+    // A15: giving an already-completed todo its FIRST recurrence spawns the
+    // next occurrence right away — the user's intent is "make this recur",
+    // and its completion event has already happened. Editing an existing
+    // recurrence does not re-spawn (that completion already spawned once).
+    if (
+      !statusChanging &&
+      after.status === "completed" &&
+      before.recurrence === null &&
+      after.recurrence !== null
+    ) {
       await spawnNextOccurrence(tx, after);
     }
 

@@ -48,6 +48,13 @@ export const UpdateTodoSchema = z
     recurrence: RecurrenceSchema.nullish(),
     /** Status changes run the R-1.8 transition guard in the service layer. */
     status: StatusSchema.optional(),
+    /**
+     * Optional dependency replacement, applied in the SAME transaction as the
+     * other changes — the panel's draft model saves everything atomically.
+     * Applied before the status change (A11 checks the task's current status);
+     * any failure rolls the whole save back.
+     */
+    dependencyIds: z.array(z.string().uuid()).max(100).optional(),
   })
   .strict();
 export type UpdateTodo = z.infer<typeof UpdateTodoSchema>;
