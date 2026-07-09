@@ -127,6 +127,13 @@ No route can bypass it. This diagram also goes into a code comment in transition
   ▸ everything else → 400 INVALID_TRANSITION
 ```
 
+**Dependent-side guard (A13, R-1.9):** leaving `completed` additionally locks the
+DEPENDENT rows FOR SHARE and rejects (409) if any is `in_progress` — reopening or
+archiving a foundation out from under active work must be explicit. In the rare
+crossfire (a dependent starting while its dependency reopens), the two lock sets
+overlap in opposite order; Postgres resolves the deadlock by aborting one transaction,
+which the API maps to a retryable 409.
+
 **Race protection (eng-review decision):** the transaction takes `SELECT … FOR SHARE`
 (via `$queryRaw`) on the dependency rows before the guard check. Without it, under
 READ COMMITTED two concurrent writers can interleave: B moves to In Progress while its

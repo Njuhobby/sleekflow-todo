@@ -177,6 +177,11 @@ export function describeError(err: unknown): string {
       const names = deps?.map((d) => `"${d.name}"${d.status === "archived" ? " (archived)" : ""}`);
       return `Blocked by incomplete ${names && names.length > 1 ? "dependencies" : "dependency"}: ${names?.join(", ") ?? "?"}`;
     }
+    if (err.code === "DEPENDENT_IN_PROGRESS") {
+      const deps = (err.details as { activeDependents?: Array<{ name: string }> })
+        ?.activeDependents;
+      return `In-progress ${deps && deps.length > 1 ? "tasks" : "task"} ${deps?.map((d) => `"${d.name}"`).join(", ")} depend${deps?.length === 1 ? "s" : ""} on this — finish or pause ${deps?.length === 1 ? "it" : "them"} first`;
+    }
     if (err.code === "STALE_VERSION") return "Changed by someone else — list refreshed, try again";
     if (err.code === "INVALID_TRANSITION") {
       const d = err.details as { from?: string; to?: string };

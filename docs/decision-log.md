@@ -208,6 +208,31 @@ actor attribution arrives automatically if M7 auth ships.
 - **Observability**: request metrics and slow-query logging before this meets real
   traffic.
 
+## DL-9 — Leaving Completed is guarded against in-progress dependents (2026-07-09)
+
+**Context.** DL-5 claimed "blocked but in progress" was impossible by construction, but
+one path still produced it: task B starts on top of completed dependency A, then A gets
+reopened (backward edges were unconditionally free). Spotted while reviewing seeded
+data in the UI.
+
+**Decision.** Any transition OUT of Completed — reopen to In Progress/Not Started, or
+Archive — is rejected (409, listing the active dependents) while some dependent is
+In Progress. The user resolves it explicitly: finish the dependent, pause it back to
+Not Started (always free, A10), or break the dependency (A11) — then reopen.
+Dependents that are Completed don't block (their work is history and can't be
+retroactively undone); Not Started dependents don't block (they simply become blocked
+again, which is exactly right).
+
+**Why.** Pulling a foundation out from under active work should be an acknowledged
+act, not a silent side effect. This supersedes the unconditional "backward edges are
+always free" wording in DL-5 — backward edges remain free with respect to the task's
+OWN dependencies; they now respect its dependents. With this, A11's
+impossible-by-construction guarantee actually holds everywhere.
+
+**Concurrency.** The guard locks dependent rows FOR SHARE; the opposite-order lock
+crossfire with a simultaneously-starting dependent is resolved by Postgres deadlock
+detection, surfaced as a retryable 409.
+
 ## Measured: 10k-row performance (2026-07-08)
 
 Seeded 10,000 todos (weighted statuses, ±90-day due dates, ~1,300 dependency edges,

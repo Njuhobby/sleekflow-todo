@@ -17,6 +17,7 @@ be restated in the decision log.
 | A4 | Does an Archived dependency count as satisfied? | No. Only status = Completed satisfies a dependency | Archiving is putting away, not finishing |
 | A5 | "Data should not be permanently lost when deleted" | Soft delete (`deleted_at` timestamp) + restore endpoint. Deleting a TODO also permanently removes its dependency links (both directions, same transaction); restore brings the task back without them | The task's own data survives; severing links keeps other tasks' blocked state from being silently changed by a later restore, and makes cycle revival through restore structurally impossible |
 | A11 | Who can edit dependencies, when | Dependencies are editable only while the dependent task is `not_started`; to change dependencies of a started task, move it back to `not_started` first | Keeps "blocked but in progress" states structurally impossible instead of legislating their semantics; dependency graphs are decided before work starts |
+| A13 | Can a completed task be reopened (or archived) while others have started work on top of it? | No. Any transition OUT of `completed` is rejected (409) while some dependent is `in_progress` — the user first completes/pauses that dependent, or moves it back to `not_started` and breaks the dependency (A11), then reopens. Dependents that are `completed` (history) or `not_started` (they simply become blocked again) do not prevent it | Closes the one remaining path that could create "in progress on top of an incomplete foundation" — making A11's impossible-by-construction guarantee actually hold. Pulling a foundation out from under active work should be an explicit, acknowledged act, not a silent side effect |
 | A12 | "Archived" is named in the brief but never defined | Archived = shelved, not finished: it does not satisfy dependencies (A4); archiving keeps dependency edges, so dependents stay blocked — the UI marks the blocker as "(archived)" so the user can unarchive it or (the dependent being necessarily `not_started`) drop the dependency; archiving a recurring TODO ends the series without spawning; unarchive returns to `not_started` (A10) | Unlike delete (which severs edges, DL-5), an archived task still exists — the fact that others were waiting on it stays true and visible, and the user decides how to resolve it. Silent unblocking would let work start whose prerequisite never happened. Archive is also the only way to terminate a recurring series without completing it |
 | A6 | "Multiple users … concurrently" with no auth requirement | Single shared list, no auth; conflicts handled via optimistic concurrency (version check → 409) | Auth is explicitly a nice-to-have; the NFR is about data integrity under concurrent writes, not identity |
 | A7 | Do recurring occurrences inherit dependencies? | No — the new occurrence is created without dependency links | Dependencies usually describe a one-time ordering; auto-copying can create permanently-blocked chains. Logged as a revisit-with-more-time item |
@@ -53,8 +54,12 @@ As a user, I can create, view, update, and delete TODOs.
   (reopen); any non-archived → `archived`; `archived → not_started` (unarchive).
   All other transitions are rejected with 400. The blocked guard (R-3.4) applies only
   to edges INTO `in_progress` or `completed`; edges to `not_started` or `archived` are
-  never guarded. Reopening a completed recurring TODO SHALL NOT retract the occurrence
-  its completion spawned (R-2.2).
+  never guarded by the task's OWN dependencies. Reopening a completed recurring TODO
+  SHALL NOT retract the occurrence its completion spawned (R-2.2).
+- R-1.9 WHEN a transition OUT of `completed` (to any target) is requested and at least
+  one dependent is `in_progress`, THE SYSTEM SHALL reject it with 409 listing the
+  active dependents. Dependents that are `completed` or `not_started` do not prevent
+  the transition — the latter simply become blocked again. (A13)
 
 ## R-2 Recurring Tasks
 

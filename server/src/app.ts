@@ -56,6 +56,18 @@ export function buildApp() {
         },
       });
     }
+    // Opposite-order lock crossfire (dependent starting ∥ dependency
+    // reopening) is resolved by Postgres deadlock detection — surface the
+    // aborted side as a retryable conflict, not a 500.
+    if (err.message?.includes("deadlock detected")) {
+      return reply.status(409).send({
+        error: {
+          code: ErrorCodes.STALE_VERSION,
+          message: "Concurrent modification — please retry",
+          details: null,
+        },
+      });
+    }
     // Fastify's own client errors (malformed JSON, empty typed body, …)
     // carry a 4xx statusCode — surface them as validation, not 500s.
     if (typeof err.statusCode === "number" && err.statusCode < 500) {

@@ -219,6 +219,60 @@ describe("the blocked guard (R-3.4)", () => {
   });
 });
 
+describe("leaving completed with dependents (R-1.9, A13)", () => {
+  /** A completed, B depends on A. Returns [a, b] with fresh versions. */
+  async function setup() {
+    const a = await makeTodo(app, { name: "A" });
+    const b = await makeTodo(app, { name: "B" });
+    await setDeps(b.id, 1, [a.id]);
+    await patchStatus(a.id, 1, "completed"); // a.version = 2
+    return { a, b };
+  }
+
+  it("reopen and archive are rejected while a dependent is in progress", async () => {
+    const { a, b } = await setup();
+    await patchStatus(b.id, 2, "in_progress"); // b builds on completed a
+
+    for (const target of ["in_progress", "not_started", "archived"]) {
+      const res = await patchStatus(a.id, 2, target);
+      expect(res.statusCode, `→ ${target}`).toBe(409);
+      const err = json(res).error;
+      expect(err.code).toBe("DEPENDENT_IN_PROGRESS");
+      expect(err.details.activeDependents).toEqual([
+        { id: b.id, name: "B", status: "in_progress" },
+      ]);
+    }
+  });
+
+  it("a completed dependent is history — reopen allowed", async () => {
+    const { a, b } = await setup();
+    await patchStatus(b.id, 2, "in_progress");
+    await patchStatus(b.id, 3, "completed");
+
+    const res = await patchStatus(a.id, 2, "in_progress");
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("a not_started dependent just re-blocks — reopen allowed", async () => {
+    const { a, b } = await setup();
+
+    const res = await patchStatus(a.id, 2, "not_started");
+    expect(res.statusCode).toBe(200);
+
+    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${b.id}` }));
+    expect(detail.isBlocked).toBe(true); // blocked again, as it should be
+  });
+
+  it("the resolution path works: pause the dependent, then reopen", async () => {
+    const { a, b } = await setup();
+    await patchStatus(b.id, 2, "in_progress");
+
+    expect((await patchStatus(a.id, 2, "not_started")).statusCode).toBe(409);
+    await patchStatus(b.id, 3, "not_started"); // pausing is always free (A10)
+    expect((await patchStatus(a.id, 2, "not_started")).statusCode).toBe(200);
+  });
+});
+
 describe("delete cascade (R-1.4, DL-5)", () => {
   it("deleting a dependency severs the edge and unblocks the dependent", async () => {
     const a = await makeTodo(app, { name: "A" });

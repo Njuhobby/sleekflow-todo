@@ -86,6 +86,9 @@ export async function updateTodo(id: string, input: UpdateTodo) {
         );
       }
       if (requiresUnblocked(nextStatus)) await assertUnblocked(tx, id);
+      // A13/R-1.9: leaving completed pulls the foundation out from under
+      // dependents — refuse while any of them is actively in progress.
+      if (before.status === "completed") await assertNoActiveDependents(tx, id);
     }
 
     const { count } = await tx.todo.updateMany({
@@ -255,6 +258,31 @@ export async function listActivities(id: string, page: number, pageSize: number)
     page,
     pageSize,
   };
+}
+
+/**
+ * The dependent-side guard (A13, R-1.9): a completed task cannot be reopened
+ * or archived while someone is actively working on top of it. Completed
+ * dependents are history; not_started dependents simply re-block. Locked
+ * FOR SHARE for the same reason as assertUnblocked — a dependent mid-start
+ * must serialize against this check, not slip past it.
+ */
+async function assertNoActiveDependents(tx: Prisma.TransactionClient, id: string) {
+  const dependents = await tx.$queryRaw<Array<{ id: string; name: string; status: string }>>`
+    SELECT t.id, t.name, t.status
+    FROM todos t
+    WHERE t.id IN (SELECT dependent_id FROM todo_dependencies WHERE dependency_id = ${id})
+    ORDER BY t.id
+    FOR SHARE`;
+  const active = dependents.filter((d) => d.status === "in_progress");
+  if (active.length > 0) {
+    throw new AppError(
+      409,
+      ErrorCodes.DEPENDENT_IN_PROGRESS,
+      "Tasks in progress depend on this — finish or pause them, or break the dependency first",
+      { activeDependents: active }
+    );
+  }
 }
 
 /** Field-level old → new diff for the `updated` activity payload. */
