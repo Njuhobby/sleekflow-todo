@@ -190,6 +190,30 @@ endpoint, one read-only UI section.
 cleanly severable if time runs short. Without auth it records what happened, not who;
 actor attribution arrives automatically if M7 auth ships.
 
+## DL-10 — TODO names are deliberately not unique (2026-07-09)
+
+**Context.** Considered adding a uniqueness constraint on names — two identical
+"Write report" tasks look like a data-quality bug waiting to happen.
+
+**Decision.** Duplicates stay allowed. Identity is the UUID; the name is a
+description, not a key.
+
+**The deciding argument: recurrence.** R-2.2 copies the name to each spawned
+occurrence, so at the moment of completion a completed "Weekly report" and its
+next not-started "Weekly report" coexist by design. The workable variants were
+examined and rejected:
+- *Global uniqueness* breaks the spawn outright, or forces the system to rename the
+  user's tasks with date/counter suffixes — software should not name things on the
+  user's behalf.
+- *Uniqueness scoped to active tasks only* (not_started/in_progress) is internally
+  consistent, but adds a partial unique index plus checks on every path into the
+  active states (create, rename, reopen, unarchive, restore) — real complexity for a
+  rule the brief never asked for, and mainstream TODO products don't enforce.
+
+**Mitigation for the one real friction point.** The dependency picker could show two
+indistinguishable same-name results; its rows carry a status pill to disambiguate,
+and adding a due-date subtitle is a one-line follow-up if it ever bites.
+
 ## What I would do differently with more time
 
 - **Auth** (stretch #1, designed but unbuilt): JWT registration/login with actions
