@@ -11,6 +11,7 @@ import {
   localInputToIso,
 } from "../lib/labels.js";
 import { StatusPill } from "./pills.js";
+import { StatusDot } from "./StatusDot.js";
 import { StatusFlow } from "./StatusFlow.js";
 import { describeError } from "./TodoTable.js";
 import { useToast } from "./toast.js";
@@ -214,26 +215,12 @@ function PanelBody({
         </div>
       )}
 
-      <DependenciesSection
+      <DependencyFlow
         todo={todo}
         draftDeps={draftDeps}
         setDraftDeps={setDraftDeps}
         onNavigate={onNavigate}
       />
-
-      {todo.dependents.length > 0 && (
-        <div className="panel-section">
-          <h3>Blocking ({todo.dependents.length})</h3>
-          {todo.dependents.map((d) => (
-            <div key={d.id} className="related-item">
-              <span className="link" onClick={() => onNavigate(d.id)}>
-                {d.name}
-              </span>
-              <StatusPill status={d.status} />
-            </div>
-          ))}
-        </div>
-      )}
 
       <ActivitySection todoId={todo.id} />
 
@@ -310,11 +297,13 @@ function RecurrenceEditor({
 }
 
 /**
- * Pure draft editing: adding/removing here only mutates local state; the
- * atomic save commits it. Editable only while the task's CURRENT status is
- * not_started (A11 — the server checks against the current status too).
+ * Dependencies and dependents as one flow — upstream → this task →
+ * downstream — mirroring how the graph actually works. The left column is
+ * draft-editable (A11: only while the CURRENT status is not_started); the
+ * right column is read-only. Lock markers sit on the arrows where the flow
+ * is actually blocked.
  */
-function DependenciesSection({
+function DependencyFlow({
   todo,
   draftDeps,
   setDraftDeps,
@@ -334,60 +323,93 @@ function DependenciesSection({
     (t) => t.id !== todo.id && !draftIds.includes(t.id)
   );
 
+  const upstreamBlocks = draftDeps.some((d) => d.status !== "completed");
+  const downstreamWaits = todo.dependents.length > 0 && todo.status !== "completed";
+
   return (
     <div className="panel-section">
-      <h3>Dependencies ({draftDeps.length})</h3>
-      {draftDeps.map((d) => (
-        <div key={d.id} className="related-item">
-          <span className="link" onClick={() => onNavigate(d.id)}>
-            {d.name}
-          </span>
-          <span className="inline-row">
-            <StatusPill status={d.status} />
-            {editable && (
-              <button
-                className="btn-ghost"
-                aria-label={`Remove dependency ${d.name}`}
-                onClick={() => setDraftDeps(draftDeps.filter((x) => x.id !== d.id))}
-              >
-                ✕
-              </button>
-            )}
-          </span>
-        </div>
-      ))}
-
-      {editable ? (
-        <div className="field">
-          <input
-            type="text"
-            placeholder="+ Add dependency (search by name)…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search dependencies"
-          />
-          {search && candidates.length > 0 && (
-            <div className="picker-results">
-              {candidates.map((t) => (
-                <div
-                  key={t.id}
-                  className="picker-item"
-                  onClick={() => {
-                    setDraftDeps([...draftDeps, { id: t.id, name: t.name, status: t.status }]);
-                    setSearch("");
-                  }}
+      <h3>Dependencies &amp; Blocking</h3>
+      <div className="dep-flow" data-testid="dep-flow">
+        <div className="dep-col">
+          <div className="dep-caption">Depends on</div>
+          {draftDeps.length === 0 && <div className="hint">None</div>}
+          {draftDeps.map((d) => (
+            <div key={d.id} className="dep-chip">
+              <StatusDot status={d.status} />
+              <span className="dep-chip-name link" onClick={() => onNavigate(d.id)} title={d.name}>
+                {d.name}
+              </span>
+              {editable && (
+                <button
+                  className="btn-ghost dep-remove"
+                  aria-label={`Remove dependency ${d.name}`}
+                  onClick={() => setDraftDeps(draftDeps.filter((x) => x.id !== d.id))}
                 >
-                  <span>{t.name}</span>
-                  <StatusPill status={t.status} />
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          {editable && (
+            <div className="dep-add">
+              <input
+                type="text"
+                placeholder="+ Add…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search dependencies"
+              />
+              {search && candidates.length > 0 && (
+                <div className="picker-results">
+                  {candidates.map((t) => (
+                    <div
+                      key={t.id}
+                      className="picker-item"
+                      onClick={() => {
+                        setDraftDeps([...draftDeps, { id: t.id, name: t.name, status: t.status }]);
+                        setSearch("");
+                      }}
+                    >
+                      <span>{t.name}</span>
+                      <StatusPill status={t.status} />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+              {search && results.data && candidates.length === 0 && (
+                <div className="hint">No matches.</div>
+              )}
             </div>
           )}
-          {search && results.data && candidates.length === 0 && (
-            <div className="hint">No matches.</div>
-          )}
         </div>
-      ) : (
+
+        <div className="dep-arrow" title={upstreamBlocks ? "Incomplete dependencies block this task" : undefined}>
+          {upstreamBlocks ? "🔒" : "→"}
+        </div>
+
+        <div className="dep-self" title={todo.name}>
+          <StatusDot status={todo.status} />
+          <span className="dep-chip-name">{todo.name}</span>
+        </div>
+
+        <div className="dep-arrow" title={downstreamWaits ? "These tasks wait for this one to complete" : undefined}>
+          {downstreamWaits ? "🔒" : "→"}
+        </div>
+
+        <div className="dep-col">
+          <div className="dep-caption">Blocks</div>
+          {todo.dependents.length === 0 && <div className="hint">None</div>}
+          {todo.dependents.map((d) => (
+            <div key={d.id} className="dep-chip">
+              <StatusDot status={d.status} />
+              <span className="dep-chip-name link" onClick={() => onNavigate(d.id)} title={d.name}>
+                {d.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {!editable && (
         <div className="hint">
           Dependencies can only be edited while the task is Not started — move it back first.
         </div>

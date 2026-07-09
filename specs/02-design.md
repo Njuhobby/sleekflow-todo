@@ -378,11 +378,12 @@ quick-add (name only, Enter) bypasses it entirely.
 │  │ …                                        ││
 │  └──────────────────────────────────────────┘│
 │  Recurrence   [weekly ▾] every [1] week(s)   │
-│  Dependencies (2)                  [+ add]    │  ← add = search-select via q param;
-│    ✓ Collect metrics        completed         │    enabled only while not_started,
-│    ○ Interview notes        not started       │    otherwise an A11 hint explains
-│  Blocking (1)                                 │  ← read-only dependents list
-│    ○ Send to leadership                       │
+│  Dependencies & Blocking                      │  ← one flow, mirroring the graph:
+│   DEPENDS ON            BLOCKS                │    upstream → this task → downstream
+│   ✓ Collect metrics 🔒 (this) 🔒 ○ Send to…  │    left column draft-editable (A11,
+│   ○ Interview notes                           │    add = search via q); right column
+│   [+ Add…]                                    │    read-only; 🔒 sits on the arrow
+│                                               │    where the flow is actually blocked
 │──────────────────────────────────────────────│
 │  Activity                                     │  ← read-only timeline (R-7),
 │   · Dependency on "Design draft" removed  14:02   quiet gray, newest first

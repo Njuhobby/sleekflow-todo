@@ -660,6 +660,79 @@ svg.cal-dot {
 .calendar-more:hover {
   color: var(--text);
 }
+
+/* --- dependency flow (detail panel) ----------------------------------- */
+.dep-flow {
+  display: grid;
+  grid-template-columns: 1fr 22px minmax(0, 120px) 22px 1fr;
+  gap: 6px;
+  align-items: start;
+}
+.dep-caption {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+.dep-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dep-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  font-size: 12.5px;
+  background: var(--bg);
+  min-width: 0;
+}
+.dep-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.dep-remove {
+  padding: 0 2px;
+  visibility: hidden;
+}
+.dep-chip:hover .dep-remove {
+  visibility: visible;
+}
+.dep-self {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--text);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--bg-panel);
+  min-width: 0;
+}
+.dep-arrow {
+  align-self: center;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.dep-add input {
+  width: 100%;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  background: var(--bg);
+  font-size: 12.5px;
+}
 .picker-results {
   border: 1px solid var(--border);
   border-radius: var(--radius);

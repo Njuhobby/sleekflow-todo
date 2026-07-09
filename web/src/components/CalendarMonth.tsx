@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import type { CalendarDay, CalendarItem } from "@shared/todo-schemas";
 import { useCalendar } from "../api/hooks.js";
 import { DEFAULT_STATUSES } from "./FilterBar.js";
+import { StatusDot } from "./StatusDot.js";
 
 /**
  * Month grid fed by the per-day aggregation endpoint (DL-13): at most three
@@ -128,27 +129,4 @@ function CellItem({ item, onOpen }: { item: CalendarItem; onOpen: (id: string) =
       </span>
     </button>
   );
-}
-
-/**
- * Shape + color, never hue alone (8px of muted blue vs muted green is
- * indistinguishable): hollow ring = not started, filled blue = in progress,
- * green check = completed, filled brown = archived.
- */
-function StatusDot({ status }: { status: CalendarItem["status"] }) {
-  if (status === "completed") {
-    return (
-      <svg className="cal-dot" viewBox="0 0 10 10" aria-hidden="true">
-        <path
-          d="M1.5 5.5l2.5 2.5 4.5-5.5"
-          fill="none"
-          stroke="var(--dot-completed)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  return <span className={`cal-dot dot-${status}`} />;
 }
