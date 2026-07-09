@@ -333,7 +333,7 @@ textarea {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(480px, 92vw);
+  width: min(640px, 92vw);
   background: var(--bg);
   border-left: 1px solid var(--border);
   z-index: 25;
@@ -664,7 +664,7 @@ svg.cal-dot {
 /* --- dependency flow (detail panel) ----------------------------------- */
 .dep-flow {
   display: grid;
-  grid-template-columns: 1fr 22px minmax(0, 120px) 22px 1fr;
+  grid-template-columns: 1fr 22px minmax(0, 170px) 22px 1fr;
   gap: 6px;
   align-items: start;
 }
