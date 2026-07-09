@@ -292,30 +292,26 @@ function DependenciesSection({
 
   const currentIds = useMemo(() => todo.dependencies.map((d) => d.id), [todo.dependencies]);
 
-  const mutate = (ids: string[]) => {
-    setDeps.mutate(
-      { id: todo.id, version: todo.version, dependencyIds: ids },
-      { onSuccess: () => setSearch(""), onError }
-    );
-  };
-
-  // Removal is an instant server mutation (unlike the draft-and-Save fields),
-  // so like delete it gets an undo toast. Undo replays the previous list with
-  // the post-mutation version the server just returned.
-  const removeWithUndo = (dep: { id: string; name: string }) => {
+  // Dependency edits are instant server mutations (unlike the draft-and-Save
+  // fields), so every change — add and remove alike — gets an undo toast.
+  // Undo replays the previous list with the post-mutation version the server
+  // just returned.
+  const applyWithUndo = (ids: string[], message: string) => {
     const previousIds = currentIds;
     setDeps.mutate(
-      { id: todo.id, version: todo.version, dependencyIds: previousIds.filter((x) => x !== dep.id) },
+      { id: todo.id, version: todo.version, dependencyIds: ids },
       {
-        onSuccess: (updated) =>
-          toast.info(`Dependency on "${dep.name}" removed`, {
+        onSuccess: (updated) => {
+          setSearch("");
+          toast.info(message, {
             actionLabel: "Undo",
             onAction: () =>
               setDeps.mutate(
                 { id: todo.id, version: updated.version, dependencyIds: previousIds },
                 { onError }
               ),
-          }),
+          });
+        },
         onError,
       }
     );
@@ -339,7 +335,12 @@ function DependenciesSection({
               <button
                 className="btn-ghost"
                 aria-label={`Remove dependency ${d.name}`}
-                onClick={() => removeWithUndo(d)}
+                onClick={() =>
+                  applyWithUndo(
+                    currentIds.filter((x) => x !== d.id),
+                    `Dependency on "${d.name}" removed`
+                  )
+                }
               >
                 ✕
               </button>
@@ -363,7 +364,9 @@ function DependenciesSection({
                 <div
                   key={t.id}
                   className="picker-item"
-                  onClick={() => mutate([...currentIds, t.id])}
+                  onClick={() =>
+                    applyWithUndo([...currentIds, t.id], `Now depends on "${t.name}"`)
+                  }
                 >
                   <span>{t.name}</span>
                   <StatusPill status={t.status} />
