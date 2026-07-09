@@ -7,34 +7,46 @@ import { STATUS_LABELS } from "../lib/labels.js";
  *
  *   Not started → In progress → Completed │ Archived
  *
- * The current status is a highlighted pill (not clickable); statuses
- * reachable from it render as buttons; unreachable ones are inert, dimmed
- * text. Reachability comes from the same shared transition table the server
- * enforces. A 🔒 marks reachable-but-guarded targets (the click still goes
- * through — the server names the exact reason if it refuses).
+ * Draft semantics: clicking a reachable status selects it as the DRAFT
+ * target (dashed ring); nothing hits the server until Save. Clicking the
+ * task's actual status clears the draft. Reachability always derives from
+ * the SERVER status (one hop of the shared transition table — the same one
+ * the server enforces), so a draft can never express an illegal edge.
+ * A 🔒 marks reachable-but-guarded targets; the server names the exact
+ * reason at save time if it refuses.
  */
 export function StatusFlow({
   todo,
-  onTransition,
+  draftStatus,
+  onSelect,
 }: {
   todo: TodoDetail;
-  onTransition: (to: Status) => void;
+  draftStatus: Status | null;
+  onSelect: (to: Status | null) => void;
 }) {
   const hasActiveDependents = todo.dependents.some((d) => d.status === "in_progress");
+  const display = draftStatus ?? todo.status;
 
   const node = (to: Status) => {
-    if (to === todo.status) {
+    if (to === display) {
       return (
-        <span className={`flow-node flow-current pill-${to}`} aria-current="step">
+        <span
+          className={`flow-node flow-current pill-${to} ${draftStatus ? "flow-pending" : ""}`}
+          aria-current="step"
+          title={draftStatus ? "Selected — applies when you save" : undefined}
+        >
           {STATUS_LABELS[to]}
         </span>
       );
     }
-    if (!isLegalTransition(todo.status, to)) {
+    // the real current status while a draft target is selected → click to revert
+    const isRevert = to === todo.status;
+    if (!isRevert && !isLegalTransition(todo.status, to)) {
       return <span className="flow-node flow-off">{STATUS_LABELS[to]}</span>;
     }
-    const lockReason =
-      requiresUnblocked(to) && todo.isBlocked
+    const lockReason = isRevert
+      ? null
+      : requiresUnblocked(to) && todo.isBlocked
         ? "Blocked by incomplete dependencies"
         : todo.status === "completed" && hasActiveDependents
           ? "Tasks in progress depend on this"
@@ -42,8 +54,12 @@ export function StatusFlow({
     return (
       <button
         className="flow-node flow-target"
-        onClick={() => onTransition(to)}
-        title={lockReason ?? `Move to ${STATUS_LABELS[to]}`}
+        onClick={() => onSelect(isRevert ? null : to)}
+        title={
+          isRevert
+            ? "Back to the current status (clears the selection)"
+            : (lockReason ?? `Move to ${STATUS_LABELS[to]} on save`)
+        }
       >
         {lockReason && "🔒 "}
         {STATUS_LABELS[to]}

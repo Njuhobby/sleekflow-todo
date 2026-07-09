@@ -469,6 +469,9 @@ textarea {
   font-weight: 600;
   cursor: default;
 }
+.flow-pending {
+  border-style: dashed; /* selected in the draft, not saved yet */
+}
 .flow-target {
   background: var(--bg);
   border: 1px dashed var(--border);

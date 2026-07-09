@@ -1,15 +1,9 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useMemo, useState } from "react";
-import type { Activity, Recurrence, Status, TodoDetail } from "@shared/todo-schemas";
+import type { Activity, Recurrence, RelatedTodo, Status, TodoDetail } from "@shared/todo-schemas";
 import { UpdateTodoSchema } from "@shared/todo-schemas";
 import { ApiError } from "../api/client.js";
-import {
-  useActivities,
-  usePickerSearch,
-  useSetDependencies,
-  useTodoDetail,
-  useUpdateTodo,
-} from "../api/hooks.js";
+import { useActivities, usePickerSearch, useTodoDetail, useUpdateTodo } from "../api/hooks.js";
 import {
   STATUS_LABELS,
   formatDateTime,
@@ -56,6 +50,13 @@ export function DetailPanel({ id, onClose, onNavigate }: Props) {
   );
 }
 
+/**
+ * The whole panel is one DRAFT: fields, the dependency list, and the status
+ * selection live in local state and hit the database only on Save changes —
+ * as one atomic PATCH (all-or-nothing). Cancel discards everything. The
+ * key on this component ({id}:{version}) resets the draft whenever the
+ * server state advances.
+ */
 function PanelBody({
   todo,
   onNavigate,
@@ -73,15 +74,43 @@ function PanelBody({
   const [due, setDue] = useState(isoToLocalInput(todo.dueDate));
   const [priority, setPriority] = useState(todo.priority);
   const [recurrence, setRecurrence] = useState<Recurrence | null>(todo.recurrence);
+  const [draftStatus, setDraftStatus] = useState<Status | null>(null);
+  const [draftDeps, setDraftDeps] = useState<RelatedTodo[]>(todo.dependencies);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [stale, setStale] = useState(false);
 
-  const dirty =
+  const serverDepIds = useMemo(
+    () => todo.dependencies.map((d) => d.id).sort().join(","),
+    [todo.dependencies]
+  );
+  const depsChanged = draftDeps.map((d) => d.id).sort().join(",") !== serverDepIds;
+
+  const fieldsDirty =
     name !== todo.name ||
     description !== (todo.description ?? "") ||
     due !== isoToLocalInput(todo.dueDate) ||
     priority !== todo.priority ||
     JSON.stringify(recurrence) !== JSON.stringify(todo.recurrence);
+
+  const dirty = fieldsDirty || draftStatus !== null || depsChanged;
+
+  const cancel = () => {
+    setName(todo.name);
+    setDescription(todo.description ?? "");
+    setDue(isoToLocalInput(todo.dueDate));
+    setPriority(todo.priority);
+    setRecurrence(todo.recurrence);
+    setDraftStatus(null);
+    setDraftDeps(todo.dependencies);
+    setFieldErrors({});
+  };
+
+  // A15: saving a first-time recurrence on a completed task spawns right away
+  const willSpawnOnSave =
+    (draftStatus ?? todo.status) === "completed" &&
+    todo.recurrence === null &&
+    recurrence !== null &&
+    draftStatus === null;
 
   const save = () => {
     const input = {
@@ -91,6 +120,8 @@ function PanelBody({
       dueDate: due ? localInputToIso(due) : null,
       priority,
       recurrence,
+      ...(draftStatus !== null && { status: draftStatus }),
+      ...(depsChanged && { dependencyIds: draftDeps.map((d) => d.id) }),
     };
     const parsed = UpdateTodoSchema.safeParse(input);
     if (!parsed.success) {
@@ -104,27 +135,18 @@ function PanelBody({
     setFieldErrors({});
     update.mutate(
       { id: todo.id, ...parsed.data },
-      { onError: (err) => handleError(err) }
-    );
-  };
-
-  const transition = (to: Status) => {
-    update.mutate(
-      { id: todo.id, version: todo.version, status: to },
       {
         onSuccess: () => {
-          if (to === "completed" && todo.recurrence) {
-            toast.info("Completed — next occurrence created");
+          if ((draftStatus === "completed" && recurrence) || willSpawnOnSave) {
+            toast.info("Next occurrence created");
           }
         },
-        onError: (err) => handleError(err),
+        onError: (err) => {
+          if (err instanceof ApiError && err.code === "STALE_VERSION") setStale(true);
+          else toast.error(describeError(err));
+        },
       }
     );
-  };
-
-  const handleError = (err: unknown) => {
-    if (err instanceof ApiError && err.code === "STALE_VERSION") setStale(true);
-    else toast.error(describeError(err));
   };
 
   return (
@@ -186,8 +208,19 @@ function PanelBody({
       </div>
 
       <RecurrenceEditor value={recurrence} onChange={setRecurrence} />
+      {willSpawnOnSave && (
+        <div className="hint" data-testid="spawn-hint">
+          This task is already completed — saving this recurrence will immediately create
+          the next occurrence.
+        </div>
+      )}
 
-      <DependenciesSection todo={todo} onNavigate={onNavigate} onError={handleError} />
+      <DependenciesSection
+        todo={todo}
+        draftDeps={draftDeps}
+        setDraftDeps={setDraftDeps}
+        onNavigate={onNavigate}
+      />
 
       {todo.dependents.length > 0 && (
         <div className="panel-section">
@@ -207,15 +240,20 @@ function PanelBody({
 
       <div className="panel-section">
         <h3>Status</h3>
-        <StatusFlow todo={todo} onTransition={transition} />
+        <StatusFlow todo={todo} draftStatus={draftStatus} onSelect={setDraftStatus} />
       </div>
 
-      <div className="panel-footer">
-        <div style={{ flex: 1 }} />
-        <button className="btn" disabled={!dirty || update.isPending} onClick={save}>
-          Save changes
-        </button>
-      </div>
+      {dirty && (
+        <div className="panel-footer">
+          <div style={{ flex: 1 }} />
+          <button className="btn" onClick={cancel} disabled={update.isPending}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={save} disabled={update.isPending}>
+            Save changes
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -237,7 +275,10 @@ function RecurrenceEditor({
           onChange={(e) =>
             onChange(
               e.target.value
-                ? { frequency: e.target.value as Recurrence["frequency"], interval: value?.interval ?? 1 }
+                ? {
+                    frequency: e.target.value as Recurrence["frequency"],
+                    interval: value?.interval ?? 1,
+                  }
                 : null
             )
           }
@@ -269,57 +310,35 @@ function RecurrenceEditor({
   );
 }
 
-/** Editable only while not_started (A11) — otherwise a hint explains why. */
+/**
+ * Pure draft editing: adding/removing here only mutates local state; the
+ * atomic save commits it. Editable only while the task's CURRENT status is
+ * not_started (A11 — the server checks against the current status too).
+ */
 function DependenciesSection({
   todo,
+  draftDeps,
+  setDraftDeps,
   onNavigate,
-  onError,
 }: {
   todo: TodoDetail;
+  draftDeps: RelatedTodo[];
+  setDraftDeps: (deps: RelatedTodo[]) => void;
   onNavigate: (id: string) => void;
-  onError: (err: unknown) => void;
 }) {
-  const setDeps = useSetDependencies();
-  const toast = useToast();
   const editable = todo.status === "not_started";
   const [search, setSearch] = useState("");
   const results = usePickerSearch(search);
 
-  const currentIds = useMemo(() => todo.dependencies.map((d) => d.id), [todo.dependencies]);
-
-  // Dependency edits are instant server mutations (unlike the draft-and-Save
-  // fields), so every change — add and remove alike — gets an undo toast.
-  // Undo replays the previous list with the post-mutation version the server
-  // just returned.
-  const applyWithUndo = (ids: string[], message: string) => {
-    const previousIds = currentIds;
-    setDeps.mutate(
-      { id: todo.id, version: todo.version, dependencyIds: ids },
-      {
-        onSuccess: (updated) => {
-          setSearch("");
-          toast.info(message, {
-            actionLabel: "Undo",
-            onAction: () =>
-              setDeps.mutate(
-                { id: todo.id, version: updated.version, dependencyIds: previousIds },
-                { onError }
-              ),
-          });
-        },
-        onError,
-      }
-    );
-  };
-
+  const draftIds = draftDeps.map((d) => d.id);
   const candidates = (results.data?.items ?? []).filter(
-    (t) => t.id !== todo.id && !currentIds.includes(t.id)
+    (t) => t.id !== todo.id && !draftIds.includes(t.id)
   );
 
   return (
     <div className="panel-section">
-      <h3>Dependencies ({todo.dependencies.length})</h3>
-      {todo.dependencies.map((d) => (
+      <h3>Dependencies ({draftDeps.length})</h3>
+      {draftDeps.map((d) => (
         <div key={d.id} className="related-item">
           <span className="link" onClick={() => onNavigate(d.id)}>
             {d.name}
@@ -330,12 +349,7 @@ function DependenciesSection({
               <button
                 className="btn-ghost"
                 aria-label={`Remove dependency ${d.name}`}
-                onClick={() =>
-                  applyWithUndo(
-                    currentIds.filter((x) => x !== d.id),
-                    `Dependency on "${d.name}" removed`
-                  )
-                }
+                onClick={() => setDraftDeps(draftDeps.filter((x) => x.id !== d.id))}
               >
                 ✕
               </button>
@@ -359,9 +373,10 @@ function DependenciesSection({
                 <div
                   key={t.id}
                   className="picker-item"
-                  onClick={() =>
-                    applyWithUndo([...currentIds, t.id], `Now depends on "${t.name}"`)
-                  }
+                  onClick={() => {
+                    setDraftDeps([...draftDeps, { id: t.id, name: t.name, status: t.status }]);
+                    setSearch("");
+                  }}
                 >
                   <span>{t.name}</span>
                   <StatusPill status={t.status} />

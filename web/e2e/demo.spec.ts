@@ -45,10 +45,14 @@ test("the interview demo script", async ({ page }) => {
   await quickAdd(page, DEP);
   await quickAdd(page, BLOCKED);
 
-  // ── declare the dependency in the detail panel ─────────────────────
+  // ── declare the dependency in the detail panel (draft → atomic save) ─
   await page.getByText(BLOCKED, { exact: true }).click();
   await page.getByLabel("Search dependencies").fill(DEP.slice(0, 20));
   await page.locator(".picker-item", { hasText: DEP }).click();
+  await expect(page.locator(".related-item", { hasText: DEP })).toBeVisible(); // draft
+  await page.getByRole("button", { name: "Save changes" }).click();
+  // the save bumps the version and the panel remounts on the committed state
+  await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
   await expect(page.locator(".related-item", { hasText: DEP })).toBeVisible();
   await closePanel(page);
 
