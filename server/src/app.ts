@@ -18,6 +18,10 @@ import { todosRoutes } from "./routes/todos.routes.js";
 export function buildApp() {
   const app = Fastify({
     logger: process.env.NODE_ENV !== "test",
+    // Two JSON lines per request drowns real signal — the query-invalidation
+    // refetches alone make the terminal unreadable. Errors still log via the
+    // error handler; re-enable per-request logs when actually tracing traffic.
+    disableRequestLogging: true,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
