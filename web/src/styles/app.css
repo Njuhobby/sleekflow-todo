@@ -663,18 +663,24 @@ svg.cal-dot {
 }
 
 /* --- dependency flow (detail panel) ----------------------------------- */
+.dep-captions,
 .dep-flow {
   display: grid;
   grid-template-columns: 1fr 22px minmax(0, 170px) 22px 1fr;
   gap: 6px;
+}
+.dep-flow {
   align-items: start;
+}
+.dep-captions {
+  margin-bottom: 4px; /* captions in their own row so all three columns
+                         start on the same baseline */
 }
 .dep-caption {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-faint);
-  margin-bottom: 2px;
 }
 .dep-col {
   display: flex;

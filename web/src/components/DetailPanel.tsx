@@ -339,9 +339,15 @@ function DependencyFlow({
   return (
     <div className="panel-section">
       <h3>Dependencies &amp; Blocking</h3>
+      <div className="dep-captions">
+        <div className="dep-caption">Depends on</div>
+        <div />
+        <div />
+        <div />
+        <div className="dep-caption">Blocks</div>
+      </div>
       <div className="dep-flow" data-testid="dep-flow">
         <div className="dep-col">
-          <div className="dep-caption">Depends on</div>
           {draftDeps.length === 0 && <div className="hint">None</div>}
           {draftDeps.map((d) => (
             <div key={d.id} className="dep-chip">
@@ -410,7 +416,6 @@ function DependencyFlow({
         <div className="dep-arrow">→</div>
 
         <div className="dep-col">
-          <div className="dep-caption">Blocks</div>
           {todo.dependents.length === 0 && <div className="hint">None</div>}
           {todo.dependents.map((d) => (
             <div key={d.id} className="dep-chip">
