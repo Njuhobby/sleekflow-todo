@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../src/lib/prisma.js";
-import { createTestApp, json, makeTodo, resetDb } from "./helpers.js";
+import { inject, createTestApp, json, makeTodo, resetDb } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -17,7 +17,7 @@ afterAll(async () => {
 
 describe("POST /api/todos", () => {
   it("creates with defaults and records a `created` activity", async () => {
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "POST",
       url: "/api/todos",
       payload: { name: "  Write report  ", dueDate: "2026-07-10T09:00:00.000Z" },
@@ -60,7 +60,7 @@ describe("POST /api/todos", () => {
     ["status not allowed on create", { name: "t", status: "completed" }],
     ["unknown field", { name: "t", nope: true }],
   ])("rejects %s with 400 VALIDATION", async (_label, payload) => {
-    const res = await app.inject({ method: "POST", url: "/api/todos", payload });
+    const res = await inject(app, { method: "POST", url: "/api/todos", payload });
     expect(res.statusCode).toBe(400);
     expect(json(res).error.code).toBe("VALIDATION");
     expect(await prisma.todo.count()).toBe(0);
@@ -70,13 +70,13 @@ describe("POST /api/todos", () => {
 describe("GET /api/todos/:id", () => {
   it("returns the todo", async () => {
     const created = await makeTodo(app);
-    const res = await app.inject({ method: "GET", url: `/api/todos/${created.id}` });
+    const res = await inject(app, { method: "GET", url: `/api/todos/${created.id}` });
     expect(res.statusCode).toBe(200);
     expect(json(res).id).toBe(created.id);
   });
 
   it("404s on unknown id", async () => {
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "GET",
       url: "/api/todos/00000000-0000-4000-8000-000000000000",
     });
@@ -86,8 +86,8 @@ describe("GET /api/todos/:id", () => {
 
   it("404s on a soft-deleted todo", async () => {
     const created = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
-    const res = await app.inject({ method: "GET", url: `/api/todos/${created.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
+    const res = await inject(app, { method: "GET", url: `/api/todos/${created.id}` });
     expect(res.statusCode).toBe(404);
   });
 });
@@ -96,7 +96,7 @@ describe("PATCH /api/todos/:id", () => {
   it("applies partial updates, bumps version, records field-level diff", async () => {
     const created = await makeTodo(app, { name: "old name" });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, name: "new name", priority: "high" },
@@ -115,13 +115,13 @@ describe("PATCH /api/todos/:id", () => {
 
   it("returns 409 STALE_VERSION with current state for a stale writer (D4)", async () => {
     const created = await makeTodo(app);
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, name: "first writer wins" },
     });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, name: "stale writer" },
@@ -138,7 +138,7 @@ describe("PATCH /api/todos/:id", () => {
 
   it("status changes flow through PATCH behind the guard (T-2.4)", async () => {
     const created = await makeTodo(app);
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, status: "in_progress" },
@@ -159,7 +159,7 @@ describe("PATCH /api/todos/:id", () => {
       recurrence: { frequency: "daily", interval: 1 },
     });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, description: null, dueDate: null, recurrence: null },
@@ -171,8 +171,8 @@ describe("PATCH /api/todos/:id", () => {
 
   it("404s on unknown or deleted todo", async () => {
     const created = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
-    const res = await app.inject({
+    await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 2, name: "ghost" },
@@ -184,7 +184,7 @@ describe("PATCH /api/todos/:id", () => {
 describe("DELETE + restore (A5 soft delete)", () => {
   it("soft-deletes: row survives, listing-visible state is gone", async () => {
     const created = await makeTodo(app);
-    const res = await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
+    const res = await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
     expect(res.statusCode).toBe(204);
 
     const row = await prisma.todo.findUnique({ where: { id: created.id } });
@@ -199,16 +199,16 @@ describe("DELETE + restore (A5 soft delete)", () => {
 
   it("delete of a missing or already-deleted todo → 404", async () => {
     const created = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
-    const res = await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
+    const res = await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
     expect(res.statusCode).toBe(404);
   });
 
   it("restore brings the todo back with its previous status", async () => {
     const created = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "POST",
       url: `/api/todos/${created.id}/restore`,
     });
@@ -216,13 +216,13 @@ describe("DELETE + restore (A5 soft delete)", () => {
     expect(res.statusCode).toBe(200);
     expect(json(res)).toMatchObject({ status: "not_started", deletedAt: null });
 
-    const get = await app.inject({ method: "GET", url: `/api/todos/${created.id}` });
+    const get = await inject(app, { method: "GET", url: `/api/todos/${created.id}` });
     expect(get.statusCode).toBe(200);
   });
 
   it("restore of a non-deleted todo → 409 NOT_DELETED", async () => {
     const created = await makeTodo(app);
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "POST",
       url: `/api/todos/${created.id}/restore`,
     });
@@ -232,13 +232,13 @@ describe("DELETE + restore (A5 soft delete)", () => {
 
   it("full lifecycle leaves a complete activity trail (R-7)", async () => {
     const created = await makeTodo(app);
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${created.id}`,
       payload: { version: 1, name: "renamed" },
     });
-    await app.inject({ method: "DELETE", url: `/api/todos/${created.id}` });
-    await app.inject({ method: "POST", url: `/api/todos/${created.id}/restore` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${created.id}` });
+    await inject(app, { method: "POST", url: `/api/todos/${created.id}/restore` });
 
     const trail = await prisma.activity.findMany({
       where: { todoId: created.id },

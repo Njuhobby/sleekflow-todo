@@ -22,8 +22,14 @@ import { listTodos } from "../services/list.service.js";
 import { getCalendar } from "../services/calendar.service.js";
 
 // Routes are thin: parse (Zod, from shared schemas) → service → DTO out.
+// The whole todo surface requires a session (T-7.1: forced login); the
+// authenticated user becomes the actor on every activity event (R-7.5).
 export async function todosRoutes(app: FastifyInstance) {
   const r = app.withTypeProvider<ZodTypeProvider>();
+  // onRequest, not preHandler: authentication must precede body validation —
+  // an anonymous caller gets 401, never a validation error for a request we
+  // were never going to process.
+  r.addHook("onRequest", (req) => app.authenticate(req));
 
   r.route({
     method: "GET",
@@ -53,7 +59,7 @@ export async function todosRoutes(app: FastifyInstance) {
       response: { 201: TodoSchema, 400: ErrorEnvelopeSchema },
     },
     handler: async (req, reply) => {
-      const todo = await todoService.createTodo(req.body);
+      const todo = await todoService.createTodo(req.body, req.user);
       return reply.status(201).send(todo);
     },
   });
@@ -81,7 +87,7 @@ export async function todosRoutes(app: FastifyInstance) {
         409: ErrorEnvelopeSchema,
       },
     },
-    handler: (req) => todoService.updateTodo(req.params.id, req.body),
+    handler: (req) => todoService.updateTodo(req.params.id, req.body, req.user),
   });
 
   r.route({
@@ -97,7 +103,7 @@ export async function todosRoutes(app: FastifyInstance) {
         409: ErrorEnvelopeSchema,
       },
     },
-    handler: (req) => setDependencies(req.params.id, req.body),
+    handler: (req) => setDependencies(req.params.id, req.body, req.user),
   });
 
   r.route({
@@ -108,7 +114,7 @@ export async function todosRoutes(app: FastifyInstance) {
       response: { 204: z.null(), 404: ErrorEnvelopeSchema },
     },
     handler: async (req, reply) => {
-      await todoService.deleteTodo(req.params.id);
+      await todoService.deleteTodo(req.params.id, req.user);
       return reply.status(204).send(null);
     },
   });
@@ -132,6 +138,6 @@ export async function todosRoutes(app: FastifyInstance) {
       params: IdParamSchema,
       response: { 200: TodoSchema, 404: ErrorEnvelopeSchema, 409: ErrorEnvelopeSchema },
     },
-    handler: (req) => todoService.restoreTodo(req.params.id),
+    handler: (req) => todoService.restoreTodo(req.params.id, req.user),
   });
 }

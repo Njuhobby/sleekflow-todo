@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../src/lib/prisma.js";
-import { createTestApp, json, makeTodo, resetDb } from "./helpers.js";
+import { inject, createTestApp, json, makeTodo, resetDb } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -16,7 +16,7 @@ afterAll(async () => {
 });
 
 async function setDeps(id: string, version: number, dependencyIds: string[]) {
-  return app.inject({
+  return inject(app, {
     method: "PUT",
     url: `/api/todos/${id}/dependencies`,
     payload: { version, dependencyIds },
@@ -24,7 +24,7 @@ async function setDeps(id: string, version: number, dependencyIds: string[]) {
 }
 
 async function patchStatus(id: string, version: number, status: string) {
-  return app.inject({
+  return inject(app, {
     method: "PATCH",
     url: `/api/todos/${id}`,
     payload: { version, status },
@@ -57,7 +57,7 @@ describe("PUT /api/todos/:id/dependencies", () => {
     const b = await makeTodo(app, { name: "B" });
     await setDeps(b.id, 1, [a.id]);
 
-    const res = await app.inject({ method: "GET", url: `/api/todos/${a.id}` });
+    const res = await inject(app, { method: "GET", url: `/api/todos/${a.id}` });
     expect(json(res).dependents).toEqual([{ id: b.id, name: "B", status: "not_started" }]);
   });
 
@@ -71,7 +71,7 @@ describe("PUT /api/todos/:id/dependencies", () => {
   it("rejects deleted or unknown targets with 400 (T-2.2)", async () => {
     const a = await makeTodo(app);
     const b = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${b.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${b.id}` });
 
     const res = await setDeps(a.id, 1, [b.id]);
     expect(res.statusCode).toBe(400);
@@ -225,7 +225,7 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
     await patchStatus(dep.id, 1, "completed");
     const t = await makeTodo(app, { name: "T" });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${t.id}`,
       payload: {
@@ -246,7 +246,7 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
     const dep = await makeTodo(app, { name: "incomplete dep" });
     const t = await makeTodo(app, { name: "T" });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${t.id}`,
       payload: {
@@ -261,7 +261,7 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
     expect(json(res).error.code).toBe("TODO_BLOCKED");
 
     // nothing happened: no rename, no edges, version untouched
-    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${t.id}` }));
+    const detail = json(await inject(app, { method: "GET", url: `/api/todos/${t.id}` }));
     expect(detail).toMatchObject({ name: "T", version: 1, status: "not_started" });
     expect(detail.dependencies).toEqual([]);
   });
@@ -270,7 +270,7 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
     const dep = await makeTodo(app, { name: "dep" });
     const t = await makeTodo(app, { name: "T" });
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${t.id}`,
       payload: { version: 1, dependencyIds: [dep.id] },
@@ -278,7 +278,7 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
     expect(res.statusCode).toBe(200);
     expect(json(res).version).toBe(2);
 
-    const stale = await app.inject({
+    const stale = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${t.id}`,
       payload: { version: 1, dependencyIds: [] },
@@ -294,14 +294,14 @@ describe("atomic draft save — PATCH with dependencyIds", () => {
 
     // draft says "back to not_started AND change deps" — deps apply first,
     // against in_progress → rejected, whole save rolls back
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${t.id}`,
       payload: { version: 2, dependencyIds: [dep.id], status: "not_started" },
     });
     expect(res.statusCode).toBe(409);
     expect(json(res).error.code).toBe("DEPENDENCY_EDIT_INVALID_STATUS");
-    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${t.id}` }));
+    const detail = json(await inject(app, { method: "GET", url: `/api/todos/${t.id}` }));
     expect(detail.status).toBe("in_progress");
   });
 });
@@ -346,7 +346,7 @@ describe("leaving completed with dependents (R-1.9, A13)", () => {
     const res = await patchStatus(a.id, 2, "not_started");
     expect(res.statusCode).toBe(200);
 
-    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${b.id}` }));
+    const detail = json(await inject(app, { method: "GET", url: `/api/todos/${b.id}` }));
     expect(detail.isBlocked).toBe(true); // blocked again, as it should be
   });
 
@@ -366,9 +366,9 @@ describe("delete cascade (R-1.4, DL-5)", () => {
     const b = await makeTodo(app, { name: "B" });
     await setDeps(b.id, 1, [a.id]);
 
-    await app.inject({ method: "DELETE", url: `/api/todos/${a.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${a.id}` });
 
-    const detail = json(await app.inject({ method: "GET", url: `/api/todos/${b.id}` }));
+    const detail = json(await inject(app, { method: "GET", url: `/api/todos/${b.id}` }));
     expect(detail.isBlocked).toBe(false);
     expect(detail.dependencies).toEqual([]);
 
@@ -383,7 +383,7 @@ describe("delete cascade (R-1.4, DL-5)", () => {
     await setDeps(b.id, 1, [a.id]); // B depends on A
     await setDeps(a.id, 1, [c.id]); // A depends on C
 
-    await app.inject({ method: "DELETE", url: `/api/todos/${a.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${a.id}` });
 
     const activity = await prisma.activity.findFirst({
       where: { todoId: a.id, type: "deleted" },
@@ -402,12 +402,12 @@ describe("delete cascade (R-1.4, DL-5)", () => {
     const b = await makeTodo(app, { name: "B" });
     await setDeps(b.id, 1, [a.id]);
 
-    await app.inject({ method: "DELETE", url: `/api/todos/${a.id}` });
-    await app.inject({ method: "POST", url: `/api/todos/${a.id}/restore` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${a.id}` });
+    await inject(app, { method: "POST", url: `/api/todos/${a.id}/restore` });
 
-    const bDetail = json(await app.inject({ method: "GET", url: `/api/todos/${b.id}` }));
+    const bDetail = json(await inject(app, { method: "GET", url: `/api/todos/${b.id}` }));
     expect(bDetail.isBlocked).toBe(false);
-    const aDetail = json(await app.inject({ method: "GET", url: `/api/todos/${a.id}` }));
+    const aDetail = json(await inject(app, { method: "GET", url: `/api/todos/${a.id}` }));
     expect(aDetail.dependencies).toEqual([]);
     expect(aDetail.dependents).toEqual([]);
 
@@ -437,7 +437,7 @@ describe("deterministic concurrency (D2, D5)", () => {
     // T2: B's transition — its FOR SHARE on A must WAIT for T1, then see
     // the reopen and refuse. Without the lock it would read the committed
     // (completed) state, succeed, and break the R-3.4 invariant.
-    const t2 = app.inject({
+    const t2 = inject(app, {
       method: "PATCH",
       url: `/api/todos/${b.id}`,
       payload: { version: 2, status: "in_progress" },

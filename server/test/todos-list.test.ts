@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../src/lib/prisma.js";
-import { createTestApp, json, makeTodo, resetDb } from "./helpers.js";
+import { inject, createTestApp, json, makeTodo, resetDb } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -16,7 +16,7 @@ afterAll(async () => {
 });
 
 async function list(qs = "") {
-  const res = await app.inject({ method: "GET", url: `/api/todos${qs}` });
+  const res = await inject(app, { method: "GET", url: `/api/todos${qs}` });
   return { status: res.statusCode, body: json(res) };
 }
 
@@ -24,7 +24,7 @@ describe("GET /api/todos — filters (R-4.1)", () => {
   it("filters by status (multi, both CSV and repeated params)", async () => {
     const a = await makeTodo(app, { name: "A" });
     await makeTodo(app, { name: "B" });
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${a.id}`,
       payload: { version: 1, status: "in_progress" },
@@ -81,12 +81,12 @@ describe("GET /api/todos — filters (R-4.1)", () => {
     const dep = await makeTodo(app, { name: "dep" });
     const blocked = await makeTodo(app, { name: "blocked" });
     await makeTodo(app, { name: "free" });
-    await app.inject({
+    await inject(app, {
       method: "PUT",
       url: `/api/todos/${blocked.id}/dependencies`,
       payload: { version: 1, dependencyIds: [dep.id] },
     });
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${dep.id}`,
       payload: { version: 1, status: "archived" },
@@ -109,7 +109,7 @@ describe("GET /api/todos — filters (R-4.1)", () => {
   it("deleted=true is the trash view; default excludes deleted", async () => {
     const a = await makeTodo(app, { name: "kept" });
     const b = await makeTodo(app, { name: "trashed" });
-    await app.inject({ method: "DELETE", url: `/api/todos/${b.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${b.id}` });
 
     const main = await list();
     expect(main.body.items.map((t: { name: string }) => t.name)).toEqual(["kept"]);

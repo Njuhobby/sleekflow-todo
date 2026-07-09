@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../src/lib/prisma.js";
-import { createTestApp, json, makeTodo, resetDb } from "./helpers.js";
+import { inject, createTestApp, json, makeTodo, resetDb } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -18,7 +18,7 @@ afterAll(async () => {
 const WEEKLY = { frequency: "weekly", interval: 1 };
 
 async function complete(id: string, version: number) {
-  return app.inject({
+  return inject(app, {
     method: "PATCH",
     url: `/api/todos/${id}`,
     payload: { version, status: "completed" },
@@ -81,7 +81,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
   it("sequential re-complete after reopen spawns again — that's a real second cycle", async () => {
     const todo = await makeTodo(app, { recurrence: WEEKLY });
     await complete(todo.id, 1); // spawn #1
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 2, status: "in_progress" }, // reopen
@@ -96,7 +96,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
     const todo = await makeTodo(app, { recurrence: WEEKLY });
     await complete(todo.id, 1);
 
-    const reopen = await app.inject({
+    const reopen = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 2, status: "not_started" },
@@ -107,7 +107,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
 
   it("archiving a recurring todo does NOT spawn (A12)", async () => {
     const todo = await makeTodo(app, { recurrence: WEEKLY });
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 1, status: "archived" },
@@ -119,7 +119,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
   it("a blocked recurring todo cannot complete, so nothing spawns (M2×M3)", async () => {
     const dep = await makeTodo(app, { name: "dep" });
     const todo = await makeTodo(app, { recurrence: WEEKLY });
-    await app.inject({
+    await inject(app, {
       method: "PUT",
       url: `/api/todos/${todo.id}/dependencies`,
       payload: { version: 1, dependencyIds: [dep.id] },
@@ -165,7 +165,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
     await complete(todo.id, 1); // completes, spawns nothing
     expect(await prisma.todo.count()).toBe(1);
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 2, recurrence: WEEKLY },
@@ -187,7 +187,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
     await complete(todo.id, 1); // spawns #1
     expect(await prisma.todo.count()).toBe(2);
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 2, recurrence: { frequency: "monthly", interval: 1 } },
@@ -198,7 +198,7 @@ describe("recurrence spawning (R-2.2, D3)", () => {
 
   it("recurrence added to a NON-completed todo stays dormant", async () => {
     const todo = await makeTodo(app);
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 1, recurrence: WEEKLY },
@@ -211,14 +211,14 @@ describe("recurrence spawning (R-2.2, D3)", () => {
 describe("GET /api/todos/:id/activities (R-7)", () => {
   it("returns the trail newest-first with pagination", async () => {
     const todo = await makeTodo(app, { recurrence: WEEKLY });
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${todo.id}`,
       payload: { version: 1, name: "renamed" },
     });
     await complete(todo.id, 2);
 
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "GET",
       url: `/api/todos/${todo.id}/activities?pageSize=2`,
     });
@@ -231,7 +231,7 @@ describe("GET /api/todos/:id/activities (R-7)", () => {
     expect(types).toEqual(expect.arrayContaining(["spawned_next", "status_changed"]));
 
     const page2 = json(
-      await app.inject({
+      await inject(app, {
         method: "GET",
         url: `/api/todos/${todo.id}/activities?page=2&pageSize=2`,
       })
@@ -241,9 +241,9 @@ describe("GET /api/todos/:id/activities (R-7)", () => {
 
   it("history remains readable for a soft-deleted todo (R-7.2)", async () => {
     const todo = await makeTodo(app);
-    await app.inject({ method: "DELETE", url: `/api/todos/${todo.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${todo.id}` });
 
-    const res = await app.inject({ method: "GET", url: `/api/todos/${todo.id}/activities` });
+    const res = await inject(app, { method: "GET", url: `/api/todos/${todo.id}/activities` });
     expect(res.statusCode).toBe(200);
     expect(json(res).items.map((a: { type: string }) => a.type)).toEqual([
       "deleted",
@@ -252,7 +252,7 @@ describe("GET /api/todos/:id/activities (R-7)", () => {
   });
 
   it("404s for a todo that never existed", async () => {
-    const res = await app.inject({
+    const res = await inject(app, {
       method: "GET",
       url: "/api/todos/00000000-0000-4000-8000-000000000000/activities",
     });

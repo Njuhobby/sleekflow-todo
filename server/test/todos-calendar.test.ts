@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../src/lib/prisma.js";
-import { createTestApp, json, makeTodo, resetDb } from "./helpers.js";
+import { inject, createTestApp, json, makeTodo, resetDb } from "./helpers.js";
 
 let app: FastifyInstance;
 
@@ -18,7 +18,7 @@ afterAll(async () => {
 const JULY = "from=2026-07-01T00:00:00.000Z&to=2026-07-31T23:59:59.999Z";
 
 async function calendar(qs = "") {
-  const res = await app.inject({ method: "GET", url: `/api/todos/calendar?${JULY}${qs}` });
+  const res = await inject(app, { method: "GET", url: `/api/todos/calendar?${JULY}${qs}` });
   return { status: res.statusCode, body: json(res) };
 }
 
@@ -40,7 +40,7 @@ describe("GET /api/todos/calendar (DL-13)", () => {
   it("caps items at 3 with incomplete-first, priority-desc ranking", async () => {
     const due = { dueDate: "2026-07-09T08:00:00Z" };
     const done = await makeTodo(app, { name: "done high", priority: "high", ...due });
-    await app.inject({
+    await inject(app, {
       method: "PATCH",
       url: `/api/todos/${done.id}`,
       payload: { version: 1, status: "completed" },
@@ -83,13 +83,13 @@ describe("GET /api/todos/calendar (DL-13)", () => {
 
   it("soft-deleted todos never appear", async () => {
     const t = await makeTodo(app, { name: "gone", dueDate: "2026-07-09T08:00:00Z" });
-    await app.inject({ method: "DELETE", url: `/api/todos/${t.id}` });
+    await inject(app, { method: "DELETE", url: `/api/todos/${t.id}` });
     const { body } = await calendar();
     expect(body.days).toEqual([]);
   });
 
   it("requires a range", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/todos/calendar" });
+    const res = await inject(app, { method: "GET", url: "/api/todos/calendar" });
     expect(res.statusCode).toBe(400);
   });
 });

@@ -5,6 +5,7 @@ import { ErrorCodes } from "@shared/error-codes";
 import { prisma } from "../lib/prisma.js";
 import { AppError, NotFoundError } from "../lib/errors.js";
 import { logActivity } from "../lib/activity.js";
+import type { Actor } from "../lib/activity.js";
 import { findCycle } from "../domain/dependency-graph.js";
 import { getTodoDetail } from "./todo.service.js";
 
@@ -30,7 +31,8 @@ interface LockedRow {
 export async function applyDependencyChange(
   tx: Prisma.TransactionClient,
   before: Pick<DbTodo, "id" | "status">,
-  requestedIds: readonly string[]
+  requestedIds: readonly string[],
+  actor: Actor
 ) {
   const id = before.id;
   const dependencyIds = [...new Set(requestedIds)];
@@ -100,20 +102,26 @@ export async function applyDependencyChange(
       where: { id: { in: removed } },
       select: { id: true, name: true },
     });
-    await logActivity(tx, id, "dependencies_changed", {
-      added: added.map((d) => ({ id: d, name: byId.get(d)!.name })),
-      removed: removedNames,
-    });
+    await logActivity(
+      tx,
+      id,
+      "dependencies_changed",
+      {
+        added: added.map((d) => ({ id: d, name: byId.get(d)!.name })),
+        removed: removedNames,
+      },
+      actor
+    );
   }
 }
 
 /** Standalone endpoint form: PUT /todos/:id/dependencies. */
-export async function setDependencies(id: string, input: SetDependencies) {
+export async function setDependencies(id: string, input: SetDependencies, actor: Actor) {
   return prisma.$transaction(async (tx) => {
     const before = await tx.todo.findUnique({ where: { id } });
     if (!before || before.deletedAt) throw new NotFoundError();
 
-    await applyDependencyChange(tx, before, input.dependencyIds);
+    await applyDependencyChange(tx, before, input.dependencyIds, actor);
 
     // A dependency change IS an edit: version-guarded like every write (D4).
     // Zero rows matched → stale → the transaction (edges included) rolls back.

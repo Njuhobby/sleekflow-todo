@@ -5,6 +5,7 @@ import { ErrorCodes } from "@shared/error-codes";
 import { prisma } from "../lib/prisma.js";
 import { AppError, NotFoundError } from "../lib/errors.js";
 import { logActivity } from "../lib/activity.js";
+import type { Actor } from "../lib/activity.js";
 import { toTodoDto, toTodoDetailDto } from "../lib/serialize.js";
 import { isLegalTransition, legalTargets, requiresUnblocked } from "../domain/transitions.js";
 import { nextDueDate } from "../domain/recurrence.js";
@@ -42,7 +43,7 @@ async function throwStaleOrNotFound(
   });
 }
 
-export async function createTodo(input: CreateTodo) {
+export async function createTodo(input: CreateTodo, actor: Actor) {
   return prisma.$transaction(async (tx) => {
     const todo = await tx.todo.create({
       data: {
@@ -58,7 +59,7 @@ export async function createTodo(input: CreateTodo) {
       priority: todo.priority,
       dueDate: todo.dueDate?.toISOString() ?? null,
       recurrence: todo.recurrence ?? null,
-    });
+    }, actor);
     return toTodoDto(todo);
   });
 }
@@ -69,7 +70,7 @@ export async function getTodoDetail(id: string, client: Prisma.TransactionClient
   return toTodoDetailDto(todo);
 }
 
-export async function updateTodo(id: string, input: UpdateTodo) {
+export async function updateTodo(id: string, input: UpdateTodo, actor: Actor) {
   const { version, status: nextStatus, dependencyIds, ...changes } = input;
 
   return prisma.$transaction(async (tx) => {
@@ -91,7 +92,7 @@ export async function updateTodo(id: string, input: UpdateTodo) {
     // the blocked guard below judges the NEW dependency set. Any failure
     // rolls back everything.
     if (dependencyIds !== undefined) {
-      await applyDependencyChange(tx, before, dependencyIds);
+      await applyDependencyChange(tx, before, dependencyIds, actor);
     }
 
     if (statusChanging) {
@@ -121,11 +122,11 @@ export async function updateTodo(id: string, input: UpdateTodo) {
 
     const after = (await tx.todo.findUnique({ where: { id } })) as DbTodo;
     if (statusChanging) {
-      await logActivity(tx, id, "status_changed", { from: before.status, to: nextStatus });
+      await logActivity(tx, id, "status_changed", { from: before.status, to: nextStatus }, actor);
     }
     const changed = diff(before, after);
     if (Object.keys(changed).length > 0) {
-      await logActivity(tx, id, "updated", { changed });
+      await logActivity(tx, id, "updated", { changed }, actor);
     }
 
     // D3: completing a recurring todo spawns the next occurrence in this
@@ -133,7 +134,7 @@ export async function updateTodo(id: string, input: UpdateTodo) {
     // guard above means a duplicate completion matches zero rows and 409s
     // before ever reaching this point.
     if (statusChanging && nextStatus === "completed" && after.recurrence) {
-      await spawnNextOccurrence(tx, after);
+      await spawnNextOccurrence(tx, after, actor);
     }
 
     // A15: giving an already-completed todo its FIRST recurrence spawns the
@@ -146,7 +147,7 @@ export async function updateTodo(id: string, input: UpdateTodo) {
       before.recurrence === null &&
       after.recurrence !== null
     ) {
-      await spawnNextOccurrence(tx, after);
+      await spawnNextOccurrence(tx, after, actor);
     }
 
     return getTodoDetail(id, tx);
@@ -154,7 +155,7 @@ export async function updateTodo(id: string, input: UpdateTodo) {
 }
 
 /** Create the next occurrence of a recurring todo (R-2.2, R-2.6). */
-async function spawnNextOccurrence(tx: Prisma.TransactionClient, completed: DbTodo) {
+async function spawnNextOccurrence(tx: Prisma.TransactionClient, completed: DbTodo, actor: Actor) {
   const recurrence = completed.recurrence as Recurrence;
   const due = nextDueDate(recurrence, completed.dueDate, new Date());
 
@@ -173,11 +174,11 @@ async function spawnNextOccurrence(tx: Prisma.TransactionClient, completed: DbTo
   await logActivity(tx, completed.id, "spawned_next", {
     nextId: spawned.id,
     nextDue: due?.toISOString() ?? null,
-  });
+  }, actor);
   await logActivity(tx, spawned.id, "created_from_recurrence", {
     sourceId: completed.id,
     name: spawned.name,
-  });
+  }, actor);
 }
 
 /**
@@ -201,7 +202,7 @@ async function assertUnblocked(tx: Prisma.TransactionClient, id: string) {
   }
 }
 
-export async function deleteTodo(id: string) {
+export async function deleteTodo(id: string, actor: Actor) {
   await prisma.$transaction(async (tx) => {
     const { count } = await tx.todo.updateMany({
       where: { id, deletedAt: null },
@@ -229,11 +230,11 @@ export async function deleteTodo(id: string) {
           ? { direction: "depends_on" as const, ...e.dependency }
           : { direction: "blocks" as const, ...e.dependent }
       ),
-    });
+    }, actor);
   });
 }
 
-export async function restoreTodo(id: string) {
+export async function restoreTodo(id: string, actor: Actor) {
   return prisma.$transaction(async (tx) => {
     const todo = await tx.todo.findUnique({ where: { id } });
     if (!todo) throw new NotFoundError();
@@ -246,7 +247,7 @@ export async function restoreTodo(id: string) {
       where: { id },
       data: { deletedAt: null, version: { increment: 1 } },
     });
-    await logActivity(tx, id, "restored", { status: restored.status });
+    await logActivity(tx, id, "restored", { status: restored.status }, actor);
     return toTodoDto(restored);
   });
 }
@@ -275,6 +276,7 @@ export async function listActivities(id: string, page: number, pageSize: number)
       todoId: a.todoId,
       type: a.type,
       payload: a.payload,
+      actorName: a.actorName,
       createdAt: a.createdAt.toISOString(),
     })),
     total,

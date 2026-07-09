@@ -1,8 +1,10 @@
 import Fastify from "fastify";
-import type { FastifyError } from "fastify";
+import type { FastifyError, FastifyRequest } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import fastifyStatic from "@fastify/static";
+import fastifyCookie from "@fastify/cookie";
+import fastifyJwt from "@fastify/jwt";
 import {
   serializerCompiler,
   validatorCompiler,
@@ -13,6 +15,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { ErrorCodes } from "@shared/error-codes";
 import { AppError } from "./lib/errors.js";
 import { healthRoutes } from "./routes/health.routes.js";
+import { authRoutes } from "./routes/auth.routes.js";
 import { todosRoutes } from "./routes/todos.routes.js";
 
 export function buildApp() {
@@ -26,6 +29,22 @@ export function buildApp() {
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
+  // Sessions: JWT in an httpOnly cookie — XSS can't read it, and the
+  // same-origin architecture (Vite proxy in dev, served SPA in prod) means
+  // no CORS surface. sameSite=lax is the CSRF baseline.
+  app.register(fastifyCookie);
+  app.register(fastifyJwt, {
+    secret: process.env.JWT_SECRET ?? "dev-only-secret-set-JWT_SECRET-in-prod",
+    cookie: { cookieName: "token", signed: false },
+  });
+  app.decorate("authenticate", async (request: FastifyRequest) => {
+    try {
+      await request.jwtVerify();
+    } catch {
+      throw new AppError(401, ErrorCodes.UNAUTHORIZED, "Login required");
+    }
+  });
 
   app.register(swagger, {
     openapi: {
@@ -82,6 +101,7 @@ export function buildApp() {
   });
 
   app.register(healthRoutes, { prefix: "/api" });
+  app.register(authRoutes, { prefix: "/api" });
   app.register(todosRoutes, { prefix: "/api" });
 
   // Production single-image mode: serve the built SPA next to the API
