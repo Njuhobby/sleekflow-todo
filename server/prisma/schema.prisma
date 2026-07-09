@@ -88,8 +88,24 @@ model Activity {
   type      String
   /// Event details; referenced names are snapshotted at event time (R-7.3)
   payload   Json
+  /// Who did it (R-7.5) — snapshotted like every name in this table, so
+  /// history stays honest across renames. Null = pre-auth or seeded events.
+  actorId   String?  @map("actor_id")
+  actorName String?  @map("actor_name")
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([todoId, createdAt(sort: Desc)])
   @@map("activities")
+}
+
+/// Identity only — the list stays shared (NFR #1); auth attributes actions
+/// to people, it does not partition data (T-7.1).
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique @db.VarChar(255)
+  name         String   @db.VarChar(100)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
 }

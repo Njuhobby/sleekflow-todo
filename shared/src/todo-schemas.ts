@@ -192,6 +192,8 @@ export const ActivitySchema = z.object({
   todoId: z.string().uuid(),
   type: z.string(),
   payload: z.unknown(),
+  /** Snapshotted at event time (R-7.5); null = pre-auth or seeded events. */
+  actorName: z.string().nullable(),
   createdAt: z.string(),
 });
 export type Activity = z.infer<typeof ActivitySchema>;
