@@ -218,8 +218,8 @@ timeline at the bottom of the detail panel (Notion's page-updates pattern).
 
 ```
 GET    /api/todos                 list; query: status[], priority[], dueBefore, dueAfter,
-                                  blocked, q (name ILIKE), includeDeleted, sortBy,
-                                  order, page, pageSize
+                                  createdBefore, createdAfter, blocked, q (name ILIKE),
+                                  deleted, sortBy, order, page, pageSize
 POST   /api/todos                 create
 GET    /api/todos/:id             detail (includes dependencies, dependents, isBlocked)
 PATCH  /api/todos/:id             partial update; body carries `version`; 409 on stale

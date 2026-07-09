@@ -118,9 +118,10 @@ it prematurely.
 As a user, I can find TODOs in a large list.
 
 - R-4.1 THE SYSTEM SHALL filter by: status (multi), priority (multi), due date range
-  (dueBefore/dueAfter), dependency state (blocked | unblocked), and name substring
-  (`q`, case-insensitive) — the latter also powers the dependency picker, which must
-  search 10k+ items server-side.
+  (dueBefore/dueAfter), creation date range (createdBefore/createdAfter), dependency
+  state (blocked | unblocked), and name substring (`q`, case-insensitive) — the latter
+  also powers the dependency picker, which must search 10k+ items server-side. All
+  range bounds are inclusive; the UI's date pickers expand a day to its full span.
 - R-4.2 THE SYSTEM SHALL sort by: due date, priority, status, name — ascending or
   descending, with a stable tiebreaker (id).
 - R-4.3 THE SYSTEM SHALL paginate all list responses (default 20, max 100 per page) and

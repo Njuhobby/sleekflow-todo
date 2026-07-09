@@ -118,6 +118,8 @@ export const ListTodosQuerySchema = z.object({
   priority: multi(PrioritySchema),
   dueBefore: DueDateSchema.optional(),
   dueAfter: DueDateSchema.optional(),
+  createdBefore: DueDateSchema.optional(),
+  createdAfter: DueDateSchema.optional(),
   /** blocked=true → only blocked; blocked=false → only unblocked (R-4.1) */
   blocked: queryBool,
   /** Case-insensitive name substring — also powers the dependency picker. */

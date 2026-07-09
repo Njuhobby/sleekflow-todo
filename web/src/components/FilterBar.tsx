@@ -89,6 +89,21 @@ export function FilterBar() {
         Overdue
       </button>
 
+      <DateRange
+        label="Due"
+        from={params.get("dueFrom")}
+        to={params.get("dueTo")}
+        onFrom={(v) => set("dueFrom", v)}
+        onTo={(v) => set("dueTo", v)}
+      />
+      <DateRange
+        label="Created"
+        from={params.get("createdFrom")}
+        to={params.get("createdTo")}
+        onFrom={(v) => set("createdFrom", v)}
+        onTo={(v) => set("createdTo", v)}
+      />
+
       <span className="spacer" />
 
       <span className="filter-label">Sort</span>
@@ -115,6 +130,45 @@ export function FilterBar() {
   );
 }
 
+/** A labeled from–to pair of native date inputs. */
+function DateRange({
+  label,
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  label: string;
+  from: string | null;
+  to: string | null;
+  onFrom: (v: string | null) => void;
+  onTo: (v: string | null) => void;
+}) {
+  return (
+    <span className="inline-row" style={{ gap: 4 }}>
+      <span className="filter-label">{label}</span>
+      <input
+        type="date"
+        value={from ?? ""}
+        onChange={(e) => onFrom(e.target.value || null)}
+        aria-label={`${label} from`}
+      />
+      <span className="filter-label">–</span>
+      <input
+        type="date"
+        value={to ?? ""}
+        onChange={(e) => onTo(e.target.value || null)}
+        aria-label={`${label} to`}
+      />
+    </span>
+  );
+}
+
+/** Date-only URL param → inclusive ISO bound (from = 00:00, to = 23:59:59.999, local). */
+function dayBound(date: string, edge: "start" | "end"): string {
+  return new Date(`${date}T${edge === "start" ? "00:00:00.000" : "23:59:59.999"}`).toISOString();
+}
+
 /** Translate URL params into the API query string. */
 export function buildApiSearch(params: URLSearchParams): string {
   const api = new URLSearchParams();
@@ -123,9 +177,19 @@ export function buildApiSearch(params: URLSearchParams): string {
     const v = params.get(key);
     if (v) api.set(key, v);
   }
+  const ranges: Array<[string, string, "start" | "end"]> = [
+    ["dueFrom", "dueAfter", "start"],
+    ["dueTo", "dueBefore", "end"],
+    ["createdFrom", "createdAfter", "start"],
+    ["createdTo", "createdBefore", "end"],
+  ];
+  for (const [param, apiKey, edge] of ranges) {
+    const v = params.get(param);
+    if (v) api.set(apiKey, dayBound(v, edge));
+  }
   if (params.get("overdue") === "true") {
+    // overdue = due before now AND still actionable (overrides a dueTo bound)
     api.set("dueBefore", new Date().toISOString());
-    // overdue = due before now AND still actionable
     api.set("status", "not_started,in_progress");
   }
   return `?${api.toString()}`;

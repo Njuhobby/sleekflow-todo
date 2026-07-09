@@ -20,6 +20,12 @@ export async function listTodos(query: ListTodosQuery): Promise<TodoList> {
         ...(query.dueAfter && { gte: new Date(query.dueAfter) }),
       },
     }),
+    ...((query.createdBefore || query.createdAfter) && {
+      createdAt: {
+        ...(query.createdBefore && { lte: new Date(query.createdBefore) }),
+        ...(query.createdAfter && { gte: new Date(query.createdAfter) }),
+      },
+    }),
     ...(query.q && { name: { contains: query.q, mode: "insensitive" } }),
     // Compiles to EXISTS / NOT EXISTS on the edges (D1). Edges only ever
     // reference live todos (R-1.4), so no deletedAt filter is needed here.

@@ -49,6 +49,26 @@ describe("GET /api/todos — filters (R-4.1)", () => {
     expect(byRange.body.items[0].name).toBe("low far");
   });
 
+  it("filters by createdAt range", async () => {
+    // one row planted in the past, one created now
+    await prisma.todo.create({
+      data: { name: "ancient", createdAt: new Date("2020-01-01T00:00:00Z") },
+    });
+    await makeTodo(app, { name: "fresh" });
+
+    const recent = await list("?createdAfter=2025-01-01T00:00:00Z");
+    expect(recent.body.items.map((t: { name: string }) => t.name)).toEqual(["fresh"]);
+
+    const old = await list("?createdBefore=2025-01-01T00:00:00Z");
+    expect(old.body.items.map((t: { name: string }) => t.name)).toEqual(["ancient"]);
+
+    const window = await list(
+      "?createdAfter=2019-01-01T00:00:00Z&createdBefore=2025-01-01T00:00:00Z"
+    );
+    expect(window.body.total).toBe(1);
+    expect(window.body.items[0].name).toBe("ancient");
+  });
+
   it("q searches name case-insensitively (dependency picker path)", async () => {
     await makeTodo(app, { name: "Deploy Staging" });
     await makeTodo(app, { name: "Write docs" });
