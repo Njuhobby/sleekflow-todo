@@ -445,7 +445,10 @@ function ActivitySection({ todoId }: { todoId: string }) {
       <ul className="timeline">
         {data.items.map((a) => (
           <li key={a.id}>
-            <span>{describeActivity(a)}</span>
+            <span>
+              {describeActivity(a)}
+              {a.actorName && <span className="hint"> — {a.actorName}</span>}
+            </span>
             <time>{formatDateTime(a.createdAt)}</time>
           </li>
         ))}

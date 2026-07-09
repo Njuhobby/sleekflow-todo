@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCreateTodo, useTodos } from "../api/hooks.js";
+import { useCreateTodo, useLogout, useMe, useTodos } from "../api/hooks.js";
 import { CalendarMonth } from "../components/CalendarMonth.js";
 import { CreateDialog } from "../components/CreateDialog.js";
 import { DetailPanel } from "../components/DetailPanel.js";
@@ -70,6 +70,7 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
             </Link>
           ) : (
             <>
+              <UserChip />
               <Link to="/trash" className="btn">
                 Trash
               </Link>
@@ -127,6 +128,20 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
         />
       )}
     </div>
+  );
+}
+
+function UserChip() {
+  const me = useMe();
+  const logout = useLogout();
+  if (!me.data) return null;
+  return (
+    <span className="user-chip" title={me.data.email}>
+      {me.data.name}
+      <button className="btn-ghost" onClick={() => logout.mutate()}>
+        Log out
+      </button>
+    </span>
   );
 }
 

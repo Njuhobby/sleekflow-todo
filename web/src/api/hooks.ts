@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Login, Register, User as AuthUser } from "@shared/auth-schemas";
 import type {
   ActivityList,
   Calendar,
@@ -10,6 +11,42 @@ import type {
   UpdateTodo,
 } from "@shared/todo-schemas";
 import { api } from "./client.js";
+
+/** The session gate: 401 means "show the login page". */
+export function useMe() {
+  return useQuery({
+    queryKey: ["me"],
+    queryFn: () => api<AuthUser>("/auth/me"),
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function useLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Login) =>
+      api<AuthUser>("/auth/login", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useRegister() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Register) =>
+      api<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<null>("/auth/logout", { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
 
 /** Cache keys mirror the URL params one-to-one — navigating IS cache addressing. */
 export function useTodos(search: string) {

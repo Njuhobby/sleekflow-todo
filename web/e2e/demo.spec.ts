@@ -14,6 +14,19 @@ const DEP = `Design draft ${run}`;
 const BLOCKED = `Implement UI ${run}`;
 const WEEKLY = `Weekly report ${run}`;
 
+// T-7.1 forced login: register a fresh user via the API before each test —
+// the cookie lands in the browser context's jar.
+test.beforeEach(async ({ page }) => {
+  const res = await page.request.post("/api/auth/register", {
+    data: {
+      email: `e2e-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`,
+      name: "E2E Tester",
+      password: "password123",
+    },
+  });
+  expect(res.status()).toBe(201);
+});
+
 async function quickAdd(page: Page, name: string) {
   const input = page.getByLabel("Quick add todo");
   await input.fill(name);
@@ -110,6 +123,32 @@ test("the interview demo script", async ({ page }) => {
   await page.getByRole("link", { name: "← Back" }).click();
   await expect(rowFor(page, DEP)).toHaveCount(1); // back with its status intact
   await expect(rowFor(page, DEP).getByText("Completed")).toBeVisible();
+});
+
+test("the login gate: anonymous users see the form, registering enters the app", async ({
+  page,
+}) => {
+  await page.context().clearCookies(); // drop the beforeEach session
+  await page.goto("/");
+
+  // gated: the form, not the list
+  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
+  await expect(page.getByLabel("Quick add todo")).toHaveCount(0);
+
+  // register through the UI
+  await page.getByRole("button", { name: "No account? Register" }).click();
+  await page.getByLabel("Email").fill(`ui-${Date.now()}@example.com`);
+  await page.getByLabel("Name").fill("Form Tester");
+  await page.getByLabel("Password").fill("password123");
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  // in: the list renders and the header shows who we are
+  await expect(page.getByLabel("Quick add todo")).toBeVisible();
+  await expect(page.locator(".user-chip")).toContainText("Form Tester");
+
+  // log out → back to the gate
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
 });
 
 test("calendar view renders the month grid and round-trips to the list", async ({ page }) => {

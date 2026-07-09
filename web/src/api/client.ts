@@ -24,6 +24,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     const err = body?.error ?? { code: "INTERNAL", message: `HTTP ${res.status}` };
+    // Session expired mid-use → tell the auth gate to re-check
+    if (res.status === 401 && !path.startsWith("/auth")) {
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     throw new ApiError(res.status, err.code, err.message, err.details ?? null);
   }
   return body as T;
