@@ -309,11 +309,35 @@ Grouping, sorting, and truncation happen where the data lives.
 (sort and blocked controls hide — they're list concepts). Day boundaries are UTC,
 consistent with the documented all-UTC stance.
 
+## DL-14 — Auth: forced login, cookie sessions, attribution through the trail (2026-07-09)
+
+**Context.** Stretch #1. The brief's baseline is an unauthenticated shared list; the
+NFR's "same TODO list" rules out per-user partitioning.
+
+**Decisions.**
+1. *Forced login.* The whole todo surface requires a session — an optional login would
+   make registration pointless. The guard runs at the `onRequest` stage: identity is
+   checked before request bodies are even validated.
+2. *JWT in an httpOnly cookie*, not localStorage: XSS can't read cookies, and the
+   same-origin setup (dev proxy / prod-served SPA) makes CORS a non-issue.
+   `sameSite=lax` as the CSRF baseline. bcryptjs for hashing — pure JS, nothing to
+   compile in Docker/CI; argon2id is the with-more-time upgrade.
+3. *Attribution rides the activity trail*: one `actor_id`/`actor_name` column pair
+   (name snapshotted like every name in the trail). Because every mutation flows
+   through the single write path, one parameter threaded into `logActivity`
+   attributed the entire system — create, edit, transitions, dependency changes,
+   delete/restore, recurrence spawns — exactly the payoff DL-8 predicted. No
+   ownership columns on todos; the list stays shared.
+4. *No account enumeration*: wrong password and unknown email return the identical
+   401.
+
+**Not built (recorded).** Refresh tokens/rotation, password reset, rate limiting on
+login attempts — noted in the more-time list.
+
 ## What I would do differently with more time
 
-- **Auth** (stretch #1, designed but unbuilt): JWT registration/login with actions
-  attributed to users — the list stays shared per the NFR; the activity trail gains
-  "who" for free.
+- **Auth hardening** (the basics shipped as DL-14): refresh-token rotation, password
+  reset, login rate limiting, argon2id instead of bcrypt.
 - **Cursor pagination** behind the same API shape — offset is measurably fine at 10k
   but degrades linearly; cursors don't.
 - **Bulk operations** reusing the same guarded transaction path.

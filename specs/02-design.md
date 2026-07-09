@@ -190,6 +190,22 @@ Offset/limit + total count: simple, supports "jump to page" UI, fine at 10k rows
 Cursor pagination is the more-time answer (noted in decision log); at 10k items offset
 cost is negligible.
 
+### D8 — Auth: identity in a cookie, attribution in the trail (R-8, T-7.1)
+
+JWT sessions in an **httpOnly cookie** (`@fastify/jwt` + `@fastify/cookie`): XSS
+cannot read it, `sameSite=lax` is the CSRF baseline, and the same-origin architecture
+(Vite proxy in dev, served SPA in prod) means zero CORS surface — the localStorage
+alternative was rejected for exactly the XSS exposure. Passwords hash with bcryptjs
+(pure JS: no native builds to break in Docker/CI; argon2id is the with-more-time
+upgrade). The guard runs at Fastify's `onRequest` stage — authentication precedes
+body validation, so anonymous callers always get 401, never a validation error.
+
+Attribution needed **one column pair**: `activities.actor_id/actor_name` (name
+snapshotted, R-7.3). Because every mutation already flows through the single write
+path (D2/D7), threading the verified session user into `logActivity` attributed the
+entire system at once — the payoff DL-8 predicted. The list stays shared (NFR #1);
+no ownership columns, no partitioning.
+
 ### D7 — Activity trail rides the single write path (R-7)
 
 ```prisma
@@ -239,7 +255,11 @@ GET    /api/todos/calendar        per-day digests for the month grid (DL-13): to
                                   totals via one window-function query; honors
                                   status/priority/q filters
 GET    /api/todos/:id/activities  event history, newest-first, paginated (R-7)
-GET    /api/health                liveness + db ping
+POST   /api/auth/register         create account, sets the session cookie (R-8)
+POST   /api/auth/login            verify credentials, sets the session cookie
+POST   /api/auth/logout           clears the session cookie
+GET    /api/auth/me               the session's user (session gate for the SPA)
+GET    /api/health                liveness + db ping (public)
 GET    /docs                      Swagger UI
 ```
 

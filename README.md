@@ -25,7 +25,9 @@ npm run dev:server              # Fastify on :3001  (terminal 1)
 npm run dev:web                 # Vite on :5173     (terminal 2)
 ```
 
-Open http://localhost:5173. API docs (Swagger UI): http://localhost:3001/docs.
+Open http://localhost:5173 and register an account (any email works locally — the
+list is shared, accounts exist for attribution). API docs (Swagger UI):
+http://localhost:3001/docs.
 
 ### One-container mode
 
@@ -68,6 +70,8 @@ Measured at 10,000 rows: default list p95 **9 ms**, worst-case blocked filter p9
   per-task timeline in the UI
 - **Concurrency** — optimistic versioning on every write; stale writers get 409 with
   the current state and the UI offers reload
+- **Auth** — registration/login (JWT in an httpOnly cookie, bcrypt-hashed passwords);
+  the list stays shared, and every activity event records who did it
 
 ## Project layout
 

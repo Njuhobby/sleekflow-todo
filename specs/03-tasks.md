@@ -129,9 +129,10 @@ deliverables; M7 is stretch.
       recurrence demo script
 
 ## M7 — Stretch (only if M0–M6 done; in priority order)
-- [ ] T-7.1 User registration + login (JWT). The list stays shared per the NFR; auth
-      attributes actions to users (created_by / completed_by) rather than partitioning
-      the list. Adds users table, register/login endpoints, auth middleware, UI forms
+- [x] T-7.1 User registration + login (JWT) — BUILT, see R-8/D8/DL-14. The list stays
+      shared per the NFR; auth attributes actions via the activity trail's actor
+      columns. Users table, register/login/logout/me endpoints, onRequest guard on the
+      whole todo surface, login/register page, user chip + logout, actor in timeline
 - [ ] T-7.2 Bulk complete/delete with transactional guard reuse
 - [ ] T-7.3 Cursor pagination behind the same API shape
 

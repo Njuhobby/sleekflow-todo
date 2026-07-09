@@ -158,6 +158,21 @@ As a user, I can do all of the above from a browser.
   Cancel (or closing the panel) discards. Save/Cancel appear only when the draft
   differs from the server state. List-row quick actions stay instant.
 
+## R-8 Authentication (stretch T-7.1 — built)
+
+As a user, I register and log in, and my actions are attributed to me.
+
+- R-8.1 Registration requires a unique email, a name, and a password of 8+ characters;
+  passwords are stored as bcrypt hashes. Duplicate email → 409 EMAIL_TAKEN.
+- R-8.2 Login issues a JWT session in an httpOnly, sameSite=lax cookie (7 days);
+  logout clears it. Wrong password and unknown email return the SAME 401 — no
+  account enumeration.
+- R-8.3 The entire /api/todos surface requires a session — anonymous callers get 401
+  BEFORE any validation runs. /api/health stays public.
+- R-8.4 The list remains SHARED (NFR #1): auth attributes, never partitions. Every
+  activity event records its actor (id + name snapshot, R-7.5), shown in the timeline
+  and surviving later account renames.
+
 ## R-6 Non-Functional Requirements
 
 - R-6.1 Concurrency: WHEN two clients update the same TODO concurrently, THE SYSTEM SHALL
@@ -193,5 +208,5 @@ As a user, I can open a TODO and see everything that ever happened to it, newest
 - Task groups; full iCal RRULE recurrence.
 - Time zones: all dates handled as UTC date-times; per-user timezone handling logged as future work.
 
-Authentication and bulk operations are NOT out of scope — they are stretch goals,
-planned in priority order in `03-tasks.md` M7 (auth first).
+Authentication (stretch #1) has since been BUILT — see R-8. Bulk operations remain a
+stretch goal in `03-tasks.md` M7.

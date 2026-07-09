@@ -9,6 +9,7 @@ services:
       - "3001:3001"
     environment:
       DATABASE_URL: postgresql://todo:todo@db:5432/todo
+      JWT_SECRET: ${JWT_SECRET:-compose-demo-secret}
     depends_on:
       db:
         condition: service_healthy
