@@ -9,7 +9,7 @@ import { STATUS_LABELS, PRIORITY_LABELS } from "../lib/labels.js";
  */
 export const DEFAULT_STATUSES = "not_started,in_progress,completed";
 
-export function FilterBar() {
+export function FilterBar({ calendarMode = false }: { calendarMode?: boolean }) {
   const [params, setParams] = useSearchParams();
 
   const set = (key: string, value: string | null) => {
@@ -70,6 +70,10 @@ export function FilterBar() {
         ))}
       </select>
 
+      {calendarMode ? (
+        <span className="spacer" />
+      ) : (
+        <>
       <select
         value={params.get("blocked") ?? ""}
         onChange={(e) => set("blocked", e.target.value || null)}
@@ -126,6 +130,8 @@ export function FilterBar() {
         <option value="desc">↓</option>
         <option value="asc">↑</option>
       </select>
+        </>
+      )}
     </div>
   );
 }

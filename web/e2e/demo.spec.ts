@@ -111,3 +111,18 @@ test("the interview demo script", async ({ page }) => {
   await expect(rowFor(page, DEP)).toHaveCount(1); // back with its status intact
   await expect(rowFor(page, DEP).getByText("Completed")).toBeVisible();
 });
+
+test("calendar view renders the month grid and round-trips to the list", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Calendar" }).click();
+
+  const calendar = page.getByTestId("calendar");
+  await expect(calendar).toBeVisible();
+  await expect(calendar.getByText("Mon", { exact: true })).toBeVisible();
+  // today's cell is marked
+  await expect(page.locator(".calendar-today")).toHaveCount(1);
+
+  await page.getByRole("button", { name: "List" }).click();
+  await expect(page.getByTestId("calendar")).toHaveCount(0);
+  await expect(page.getByLabel("Quick add todo")).toBeVisible();
+});

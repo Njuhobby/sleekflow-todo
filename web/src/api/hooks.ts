@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ActivityList,
+  Calendar,
   CreateTodo,
   SetDependencies,
   Todo,
@@ -32,6 +33,15 @@ export function useActivities(id: string | null) {
     queryKey: ["activities", id],
     queryFn: () => api<ActivityList>(`/todos/${id}/activities?pageSize=50`),
     enabled: id !== null,
+  });
+}
+
+/** Per-day digests for the calendar view (DL-13). */
+export function useCalendar(search: string) {
+  return useQuery({
+    queryKey: ["todos", "calendar", search],
+    queryFn: () => api<Calendar>(`/todos/calendar${search}`),
+    placeholderData: (prev) => prev,
   });
 }
 

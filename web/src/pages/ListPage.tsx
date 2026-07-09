@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCreateTodo, useTodos } from "../api/hooks.js";
+import { CalendarMonth } from "../components/CalendarMonth.js";
 import { CreateDialog } from "../components/CreateDialog.js";
 import { DetailPanel } from "../components/DetailPanel.js";
 import { FilterBar, buildApiSearch } from "../components/FilterBar.js";
@@ -9,11 +10,12 @@ import { useToast } from "../components/toast.js";
 
 export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
   const [params, setParams] = useSearchParams();
+  const calendarView = !trashMode && params.get("view") === "calendar";
 
   const apiSearch = trashMode
     ? `?deleted=true&status=not_started,in_progress,completed,archived&page=${params.get("page") ?? 1}`
     : buildApiSearch(params);
-  const { data, isLoading } = useTodos(apiSearch);
+  const { data, isLoading } = useTodos(calendarView ? "" : apiSearch);
 
   const selected = params.get("selected");
   const setSelected = (id: string | null) => {
@@ -43,6 +45,7 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
             </Link>
           ) : (
             <>
+              <ViewSwitcher calendarView={calendarView} />
               <Link to="/trash" className="btn">
                 Trash
               </Link>
@@ -52,9 +55,11 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
         </div>
       </header>
 
-      {!trashMode && <FilterBar />}
+      {!trashMode && <FilterBar calendarMode={calendarView} />}
 
-      {isLoading ? (
+      {calendarView ? (
+        <CalendarMonth onOpen={(id) => setSelected(id)} />
+      ) : isLoading ? (
         <div className="empty-state">Loading…</div>
       ) : data && data.total === 0 && !trashMode && !hasActiveFilters(params) ? (
         <div className="empty-state">Nothing here — add your first todo below.</div>
@@ -62,9 +67,9 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
         <TodoTable items={data?.items ?? []} onOpen={(id) => setSelected(id)} trashMode={trashMode} />
       )}
 
-      {!trashMode && <QuickAdd />}
+      {!trashMode && !calendarView && <QuickAdd />}
 
-      {data && data.total > 0 && (
+      {!calendarView && data && data.total > 0 && (
         <div className="pagination">
           <span>
             {data.total} todo{data.total === 1 ? "" : "s"}
@@ -97,6 +102,29 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
         />
       )}
     </div>
+  );
+}
+
+function ViewSwitcher({ calendarView }: { calendarView: boolean }) {
+  const [params, setParams] = useSearchParams();
+  const setView = (calendar: boolean) => {
+    const next = new URLSearchParams(params);
+    if (calendar) next.set("view", "calendar");
+    else {
+      next.delete("view");
+      next.delete("month");
+    }
+    setParams(next);
+  };
+  return (
+    <span className="view-switcher" role="group" aria-label="View">
+      <button className={`chip ${!calendarView ? "active" : ""}`} onClick={() => setView(false)}>
+        List
+      </button>
+      <button className={`chip ${calendarView ? "active" : ""}`} onClick={() => setView(true)}>
+        Calendar
+      </button>
+    </span>
   );
 }
 
