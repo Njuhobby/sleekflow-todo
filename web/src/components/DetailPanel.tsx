@@ -285,6 +285,7 @@ function DependenciesSection({
   onError: (err: unknown) => void;
 }) {
   const setDeps = useSetDependencies();
+  const toast = useToast();
   const editable = todo.status === "not_started";
   const [search, setSearch] = useState("");
   const results = usePickerSearch(search);
@@ -295,6 +296,28 @@ function DependenciesSection({
     setDeps.mutate(
       { id: todo.id, version: todo.version, dependencyIds: ids },
       { onSuccess: () => setSearch(""), onError }
+    );
+  };
+
+  // Removal is an instant server mutation (unlike the draft-and-Save fields),
+  // so like delete it gets an undo toast. Undo replays the previous list with
+  // the post-mutation version the server just returned.
+  const removeWithUndo = (dep: { id: string; name: string }) => {
+    const previousIds = currentIds;
+    setDeps.mutate(
+      { id: todo.id, version: todo.version, dependencyIds: previousIds.filter((x) => x !== dep.id) },
+      {
+        onSuccess: (updated) =>
+          toast.info(`Dependency on "${dep.name}" removed`, {
+            actionLabel: "Undo",
+            onAction: () =>
+              setDeps.mutate(
+                { id: todo.id, version: updated.version, dependencyIds: previousIds },
+                { onError }
+              ),
+          }),
+        onError,
+      }
     );
   };
 
@@ -316,7 +339,7 @@ function DependenciesSection({
               <button
                 className="btn-ghost"
                 aria-label={`Remove dependency ${d.name}`}
-                onClick={() => mutate(currentIds.filter((x) => x !== d.id))}
+                onClick={() => removeWithUndo(d)}
               >
                 ✕
               </button>
