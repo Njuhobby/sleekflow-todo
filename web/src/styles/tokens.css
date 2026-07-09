@@ -36,6 +36,13 @@
   --pill-yellow-bg: #fbf3db;
   --pill-yellow-text: #8a6d1f;
 
+  /* status dots — saturated solids; the pastel pill BACKGROUNDS are
+     illegible at 8px (they're designed to sit under dark text) */
+  --dot-not_started: #9b9a97;
+  --dot-in_progress: #337ea9;
+  --dot-completed: #448361;
+  --dot-archived: #9f8767;
+
   /* misc */
   --radius: 6px;
   --focus: #2b6a83;

@@ -628,6 +628,18 @@ textarea {
   flex: none;
   padding: 0;
 }
+.cal-dot.pill-not_started {
+  background: var(--dot-not_started);
+}
+.cal-dot.pill-in_progress {
+  background: var(--dot-in_progress);
+}
+.cal-dot.pill-completed {
+  background: var(--dot-completed);
+}
+.cal-dot.pill-archived {
+  background: var(--dot-archived);
+}
 .calendar-item-name {
   overflow: hidden;
   text-overflow: ellipsis;
