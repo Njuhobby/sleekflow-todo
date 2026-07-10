@@ -200,6 +200,9 @@ textarea {
   color: var(--overdue);
   font-weight: 500;
 }
+.created-cell {
+  color: var(--text-faint); /* the sort key, made visible — but quiet */
+}
 .badge {
   font-size: 13px;
   color: var(--text-faint);

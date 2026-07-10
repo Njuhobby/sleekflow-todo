@@ -13,9 +13,11 @@ interface Props {
   items: TodoListItem[];
   onOpen: (id: string) => void;
   trashMode?: boolean;
+  /** When sorting by created date, show it — the sort key must be visible. */
+  showCreated?: boolean;
 }
 
-export function TodoTable({ items, onOpen, trashMode = false }: Props) {
+export function TodoTable({ items, onOpen, trashMode = false, showCreated = false }: Props) {
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -28,7 +30,13 @@ export function TodoTable({ items, onOpen, trashMode = false }: Props) {
       <table className="todo-table">
         <tbody>
           {items.map((todo) => (
-            <Row key={todo.id} todo={todo} onOpen={onOpen} trashMode={trashMode} />
+            <Row
+              key={todo.id}
+              todo={todo}
+              onOpen={onOpen}
+              trashMode={trashMode}
+              showCreated={showCreated}
+            />
           ))}
         </tbody>
       </table>
@@ -36,7 +44,12 @@ export function TodoTable({ items, onOpen, trashMode = false }: Props) {
   );
 }
 
-function Row({ todo, onOpen, trashMode }: { todo: TodoListItem } & Omit<Props, "items">) {
+function Row({
+  todo,
+  onOpen,
+  trashMode,
+  showCreated,
+}: { todo: TodoListItem } & Omit<Props, "items">) {
   const update = useUpdateTodo();
   const del = useDeleteTodo();
   const restore = useRestoreTodo();
@@ -91,6 +104,13 @@ function Row({ todo, onOpen, trashMode }: { todo: TodoListItem } & Omit<Props, "
           {formatDue(todo.dueDate)}
         </span>
       </td>
+      {showCreated && (
+        <td style={{ width: 130 }}>
+          <span className="due created-cell" title={`Created ${todo.createdAt}`}>
+            created {formatDue(todo.createdAt)}
+          </span>
+        </td>
+      )}
       <td style={{ width: 40 }} className="row-actions">
         {trashMode ? (
           <button className="btn-ghost" onClick={() => restore.mutate(todo.id)}>
