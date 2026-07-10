@@ -1,3 +1,4 @@
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { STATUS_LABELS, PRIORITY_LABELS } from "../lib/labels.js";
@@ -30,7 +31,6 @@ export function FilterBar({ calendarMode = false }: { calendarMode?: boolean }) 
     // deliberately depends only on q — `set` reads fresh params each call
   }, [q]);
 
-  const status = params.get("status") ?? DEFAULT_STATUSES;
   const overdueActive = params.get("overdue") === "true";
 
   return (
@@ -43,32 +43,21 @@ export function FilterBar({ calendarMode = false }: { calendarMode?: boolean }) 
         aria-label="Search todos"
       />
 
-      <select
-        value={status}
-        onChange={(e) => set("status", e.target.value === DEFAULT_STATUSES ? null : e.target.value)}
-        aria-label="Status filter"
-      >
-        <option value={DEFAULT_STATUSES}>Active (default)</option>
-        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-        <option value="not_started,in_progress,completed,archived">All statuses</option>
-      </select>
+      <MultiFilter
+        label="Status"
+        param="status"
+        options={Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+        defaultValues={DEFAULT_STATUSES.split(",")}
+        defaultSummary="Active"
+      />
 
-      <select
-        value={params.get("priority") ?? ""}
-        onChange={(e) => set("priority", e.target.value || null)}
-        aria-label="Priority filter"
-      >
-        <option value="">Any priority</option>
-        {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
+      <MultiFilter
+        label="Priority"
+        param="priority"
+        options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))}
+        defaultValues={Object.keys(PRIORITY_LABELS)}
+        defaultSummary="Any"
+      />
 
       {calendarMode ? (
         <span className="spacer" />
@@ -133,6 +122,81 @@ export function FilterBar({ calendarMode = false }: { calendarMode?: boolean }) 
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Multi-select filter as a checkbox dropdown (the API takes CSV lists — this
+ * finally exposes that). Toggling keeps the menu open; clearing everything
+ * falls back to the default set rather than an empty (nothing-matches) list.
+ */
+function MultiFilter({
+  label,
+  param,
+  options,
+  defaultValues,
+  defaultSummary,
+}: {
+  label: string;
+  param: string;
+  options: Array<{ value: string; label: string }>;
+  defaultValues: string[];
+  defaultSummary: string;
+}) {
+  const [params, setParams] = useSearchParams();
+  const raw = params.get(param);
+  const selected = raw ? raw.split(",") : [...defaultValues];
+
+  const toggle = (value: string) => {
+    const nextSet = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value];
+    // canonical order, so the URL is stable regardless of click order
+    const canonical = options.map((o) => o.value).filter((v) => nextSet.includes(v));
+    const next = new URLSearchParams(params);
+    const isDefault =
+      canonical.length === 0 || canonical.join(",") === defaultValues.join(",");
+    if (isDefault) next.delete(param);
+    else next.set(param, canonical.join(","));
+    next.delete("page");
+    setParams(next);
+  };
+
+  const isDefault = !raw;
+  const summary = isDefault
+    ? defaultSummary
+    : selected.length <= 2
+      ? options.filter((o) => selected.includes(o.value)).map((o) => o.label).join(", ")
+      : `${selected.length} selected`;
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button className={`filter-btn ${isDefault ? "" : "filter-active"}`} aria-label={`${label} filter`}>
+          {label}: {summary} <span className="filter-caret">▾</span>
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="menu-content" align="start" sideOffset={4}>
+          {options.map((o) => (
+            <DropdownMenu.CheckboxItem
+              key={o.value}
+              className="menu-item filter-check"
+              checked={selected.includes(o.value)}
+              onSelect={(e) => {
+                e.preventDefault(); // keep the menu open while toggling
+                toggle(o.value);
+              }}
+            >
+              <span className="filter-checkmark">
+                <DropdownMenu.ItemIndicator>✓</DropdownMenu.ItemIndicator>
+              </span>
+              {o.label}
+            </DropdownMenu.CheckboxItem>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
