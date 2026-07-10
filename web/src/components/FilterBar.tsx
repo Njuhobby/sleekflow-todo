@@ -239,8 +239,13 @@ function dayBound(date: string, edge: "start" | "end"): string {
   return new Date(`${date}T${edge === "start" ? "00:00:00.000" : "23:59:59.999"}`).toISOString();
 }
 
-/** Translate URL params into the API query string. */
-export function buildApiSearch(params: URLSearchParams): string {
+/**
+ * Translate URL params into the API query string.
+ * Returns null when the combination is unsatisfiable (e.g. Overdue +
+ * status=Completed): a finished task can never be overdue, so the caller
+ * shows an empty result without asking the server.
+ */
+export function buildApiSearch(params: URLSearchParams): string | null {
   const api = new URLSearchParams();
   api.set("status", params.get("status") ?? DEFAULT_STATUSES);
   for (const key of ["priority", "blocked", "q", "sortBy", "order", "page"]) {
@@ -258,9 +263,14 @@ export function buildApiSearch(params: URLSearchParams): string {
     if (v) api.set(apiKey, dayBound(v, edge));
   }
   if (params.get("overdue") === "true") {
-    // overdue = due before now AND still actionable (overrides a dueTo bound)
     api.set("dueBefore", new Date().toISOString());
-    api.set("status", "not_started,in_progress");
+    // Overdue INTERSECTS the status selection (never overrides it): overdue
+    // means "due before now AND still actionable" (display principle 1).
+    const actionable = ["not_started", "in_progress"];
+    const selected = (params.get("status") ?? DEFAULT_STATUSES).split(",");
+    const intersection = selected.filter((s) => actionable.includes(s));
+    if (intersection.length === 0) return null; // e.g. Completed ∩ overdue = ∅
+    api.set("status", intersection.join(","));
   }
   return `?${api.toString()}`;
 }

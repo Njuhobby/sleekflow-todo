@@ -16,7 +16,15 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
   const apiSearch = trashMode
     ? `?deleted=true&status=not_started,in_progress,completed,archived&page=${params.get("page") ?? 1}`
     : buildApiSearch(params);
-  const { data, isLoading } = useTodos(calendarView ? "" : apiSearch);
+  // null = the filter combination is unsatisfiable — render empty, don't fetch
+  const impossible = apiSearch === null;
+  const query = useTodos(calendarView || impossible ? "" : (apiSearch as string), {
+    enabled: !calendarView && !impossible,
+  });
+  const data = impossible
+    ? { items: [], total: 0, page: 1, pageSize: 20 }
+    : query.data;
+  const isLoading = !impossible && query.isLoading;
 
   const selected = params.get("selected");
   const setSelected = (id: string | null) => {

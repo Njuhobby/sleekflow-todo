@@ -49,11 +49,12 @@ export function useLogout() {
 }
 
 /** Cache keys mirror the URL params one-to-one — navigating IS cache addressing. */
-export function useTodos(search: string) {
+export function useTodos(search: string, opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["todos", search],
     queryFn: () => api<TodoList>(`/todos${search}`),
     placeholderData: (prev) => prev, // keep the table stable while refetching
+    enabled: opts.enabled ?? true,
   });
 }
 
