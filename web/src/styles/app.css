@@ -157,6 +157,35 @@ textarea {
   width: 100%;
   border-collapse: collapse;
 }
+.todo-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.th-sort {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.th-sort:hover {
+  color: var(--text);
+}
+.sort-arrow {
+  display: inline-block;
+  width: 10px;
+  margin-left: 2px;
+  color: var(--text-muted);
+}
 .todo-row {
   border-bottom: 1px solid var(--border);
 }

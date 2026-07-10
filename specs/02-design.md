@@ -329,9 +329,11 @@ An SPA with two routes plus one URL-addressable panel — deliberately small:
 ┌────────────────────────────────────────────────────────────────────┐
 │  TODOs                                              [Trash] [+ New] │
 ├────────────────────────────────────────────────────────────────────┤
-│  [Search…] [Status ▾] [Priority ▾] [Due ▾] [Blocked ▾]  Sort: Due ▾│
+│  [Search…] [Status ▾] [Priority ▾] [Blocked ▾] (Overdue) date ranges│
 ├────────────────────────────────────────────────────────────────────┤
-│  ● In progress   Write weekly report ↻       high   Jul 10          │
+│  STATUS   NAME              PRIORITY   DUE ↓   CREATED         ← sortable headers:
+│  ● In progress   Write weekly report ↻       high   Jul 10   Jul 3   click to sort,
+│                                                                click again to flip │
 │  ○ Not started   Deploy staging  🔒          med    Jul 11    [⋯]   │
 │  ○ Not started   Review PR #42               low    —               │
 │  ✓ Completed     Set up CI                   med    Jul 07          │

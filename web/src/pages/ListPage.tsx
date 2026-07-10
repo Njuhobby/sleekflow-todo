@@ -98,12 +98,7 @@ export function ListPage({ trashMode = false }: { trashMode?: boolean }) {
       ) : data && data.total === 0 && !trashMode && !hasActiveFilters(params) ? (
         <div className="empty-state">Nothing here — add your first todo below.</div>
       ) : (
-        <TodoTable
-          items={data?.items ?? []}
-          onOpen={openFromList}
-          trashMode={trashMode}
-          showCreated={params.get("sortBy") === "createdAt"}
-        />
+        <TodoTable items={data?.items ?? []} onOpen={openFromList} trashMode={trashMode} />
       )}
 
       {!trashMode && !calendarView && <QuickAdd />}

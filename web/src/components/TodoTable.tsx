@@ -1,5 +1,6 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Tooltip from "@radix-ui/react-tooltip";
+import { useSearchParams } from "react-router-dom";
 import type { TodoListItem } from "@shared/todo-schemas";
 import { legalTargets } from "@shared/transitions";
 import { isOverdue } from "@shared/overdue";
@@ -13,11 +14,62 @@ interface Props {
   items: TodoListItem[];
   onOpen: (id: string) => void;
   trashMode?: boolean;
-  /** When sorting by created date, show it — the sort key must be visible. */
-  showCreated?: boolean;
 }
 
-export function TodoTable({ items, onOpen, trashMode = false, showCreated = false }: Props) {
+/** Clickable column headers: click to sort, click again to flip direction. */
+function SortableHeaders({ interactive }: { interactive: boolean }) {
+  const [params, setParams] = useSearchParams();
+  const sortBy = params.get("sortBy") ?? "createdAt";
+  const order = params.get("order") ?? "desc";
+
+  const onSort = (key: string) => {
+    const next = new URLSearchParams(params);
+    if (sortBy === key) {
+      next.set("order", order === "desc" ? "asc" : "desc");
+      next.set("sortBy", key);
+    } else {
+      next.set("sortBy", key);
+      // names read naturally ascending; dates/priority start with the big end
+      next.set("order", key === "name" ? "asc" : "desc");
+    }
+    next.delete("page");
+    setParams(next);
+  };
+
+  const columns: Array<{ key: string | null; label: string; width?: number }> = [
+    { key: "status", label: "Status", width: 110 },
+    { key: "name", label: "Name" },
+    { key: "priority", label: "Priority", width: 90 },
+    { key: "dueDate", label: "Due", width: 90 },
+    { key: "createdAt", label: "Created", width: 90 },
+    { key: null, label: "", width: 40 },
+  ];
+
+  return (
+    <thead>
+      <tr>
+        {columns.map((c) =>
+          c.key && interactive ? (
+            <th key={c.label} style={{ width: c.width }}>
+              <button className="th-sort" onClick={() => onSort(c.key!)}>
+                {c.label}
+                <span className="sort-arrow">
+                  {sortBy === c.key ? (order === "asc" ? "↑" : "↓") : ""}
+                </span>
+              </button>
+            </th>
+          ) : (
+            <th key={c.label || "actions"} style={{ width: c.width }}>
+              {c.label}
+            </th>
+          )
+        )}
+      </tr>
+    </thead>
+  );
+}
+
+export function TodoTable({ items, onOpen, trashMode = false }: Props) {
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -28,15 +80,10 @@ export function TodoTable({ items, onOpen, trashMode = false, showCreated = fals
   return (
     <Tooltip.Provider delayDuration={200}>
       <table className="todo-table">
+        <SortableHeaders interactive={!trashMode} />
         <tbody>
           {items.map((todo) => (
-            <Row
-              key={todo.id}
-              todo={todo}
-              onOpen={onOpen}
-              trashMode={trashMode}
-              showCreated={showCreated}
-            />
+            <Row key={todo.id} todo={todo} onOpen={onOpen} trashMode={trashMode} />
           ))}
         </tbody>
       </table>
@@ -44,12 +91,7 @@ export function TodoTable({ items, onOpen, trashMode = false, showCreated = fals
   );
 }
 
-function Row({
-  todo,
-  onOpen,
-  trashMode,
-  showCreated,
-}: { todo: TodoListItem } & Omit<Props, "items">) {
+function Row({ todo, onOpen, trashMode }: { todo: TodoListItem } & Omit<Props, "items">) {
   const update = useUpdateTodo();
   const del = useDeleteTodo();
   const restore = useRestoreTodo();
@@ -104,13 +146,11 @@ function Row({
           {formatDue(todo.dueDate)}
         </span>
       </td>
-      {showCreated && (
-        <td style={{ width: 130 }}>
-          <span className="due created-cell" title={`Created ${todo.createdAt}`}>
-            created {formatDue(todo.createdAt)}
-          </span>
-        </td>
-      )}
+      <td style={{ width: 90 }}>
+        <span className="due created-cell" title={`Created ${todo.createdAt}`}>
+          {formatDue(todo.createdAt)}
+        </span>
+      </td>
       <td style={{ width: 40 }} className="row-actions">
         {trashMode ? (
           <button className="btn-ghost" onClick={() => restore.mutate(todo.id)}>

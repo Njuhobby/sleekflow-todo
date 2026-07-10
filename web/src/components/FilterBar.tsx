@@ -98,27 +98,6 @@ export function FilterBar({ calendarMode = false }: { calendarMode?: boolean }) 
       />
 
       <span className="spacer" />
-
-      <span className="filter-label">Sort</span>
-      <select
-        value={params.get("sortBy") ?? "createdAt"}
-        onChange={(e) => set("sortBy", e.target.value === "createdAt" ? null : e.target.value)}
-        aria-label="Sort by"
-      >
-        <option value="createdAt">Created</option>
-        <option value="dueDate">Due date</option>
-        <option value="priority">Priority</option>
-        <option value="status">Status</option>
-        <option value="name">Name</option>
-      </select>
-      <select
-        value={params.get("order") ?? "desc"}
-        onChange={(e) => set("order", e.target.value === "desc" ? null : e.target.value)}
-        aria-label="Sort order"
-      >
-        <option value="desc">↓</option>
-        <option value="asc">↑</option>
-      </select>
         </>
       )}
     </div>

@@ -96,10 +96,12 @@ deliverables; M7 is stretch.
       Tooltip, Toast, Dialog, Select — styled by our tokens, no styled UI framework)
 - [ ] T-5.2 List page: table, status/priority pill tags, hover-revealed row actions,
       blocked 🔒 + tooltip, inline "+ New" quick-add row, pagination
-- [ ] T-5.3 FilterBar (status, priority, due range, blocked, search) + sort controls +
-      "Overdue" quick preset — state in URL params so demo links are shareable; default
-      status filter excludes archived (display principle 2); overdue helper lives in
-      shared/ (display principle 1)
+- [ ] T-5.3 FilterBar (status/priority multi-select, due + created ranges, blocked,
+      search) + "Overdue" quick preset — state in URL params so demo links are
+      shareable; default status filter excludes archived (display principle 2);
+      overdue helper lives in shared/ (display principle 1). Sorting moved to
+      clickable table headers (click to sort, click again to flip; arrow marks the
+      active column); Due and Created are always-visible columns
 - [ ] T-5.4 Detail side panel (routed via ?selected=:id, Notion peek pattern): shared
       create/edit form, inline validation from shared Zod schemas, recurrence editor,
       dependency picker (search-select via q; enabled only while not_started per A11,
