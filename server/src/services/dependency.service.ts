@@ -20,10 +20,14 @@ interface LockedRow {
  * Replace a todo's dependency list inside an ambient transaction (R-3.1,
  * R-3.2, A11). Used by the PUT endpoint and by PATCH's atomic draft save.
  *
- * Concurrency (D5): all involved rows are locked FOR SHARE **ordered by id**
- * before the cycle walk. Two overlapping writers (A→B ∥ B→A) therefore
- * serialize — the second walk sees the first's committed edges and rejects
- * the cycle. Ordering the lock acquisition rules out lock-order deadlocks.
+ * Concurrency (D5): all involved rows are locked FOR UPDATE **ordered by
+ * id** before the cycle walk. Exclusive locks conflict, so the ordering
+ * actually serializes overlapping writers (A→B ∥ B→A): the second waits at
+ * its first lock holding nothing, then sees the first's committed edges and
+ * rejects the cycle — structurally deadlock-free within this path. (FOR
+ * SHARE would not serialize anything here: share locks coexist, and the
+ * conflict would merely resurface as an upgrade deadlock at the version
+ * bump.) The self row needs the exclusive lock anyway for that bump.
  *
  * Does NOT bump the version — the caller's version-guarded write both
  * authenticates the change and rolls this back if the version is stale.
@@ -59,7 +63,7 @@ export async function applyDependencyChange(
     FROM todos
     WHERE id IN (${Prisma.join(involved)})
     ORDER BY id
-    FOR SHARE`;
+    FOR UPDATE`;
   const byId = new Map(rows.map((r) => [r.id, r]));
 
   const invalid = dependencyIds.filter((d) => {

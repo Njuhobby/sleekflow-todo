@@ -462,7 +462,7 @@ describe("deterministic concurrency (D2, D5)", () => {
     const t1Gate = new Promise<void>((resolve) => (releaseT1 = resolve));
     const involved = [a.id, b.id].sort();
     const t1 = prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM todos WHERE id IN (${involved[0]}, ${involved[1]}) ORDER BY id FOR SHARE`;
+      await tx.$queryRaw`SELECT id FROM todos WHERE id IN (${involved[0]}, ${involved[1]}) ORDER BY id FOR UPDATE`;
       await tx.$executeRaw`INSERT INTO todo_dependencies (dependent_id, dependency_id) VALUES (${a.id}, ${b.id})`;
       await tx.$executeRaw`UPDATE todos SET version = version + 1 WHERE id = ${a.id}`;
       await t1Gate;

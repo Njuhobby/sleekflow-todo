@@ -215,15 +215,24 @@ impossible-by-construction guarantee actually holds everywhere.
 crossfire with a simultaneously-starting dependent is resolved by Postgres deadlock
 detection, surfaced as a retryable 409.
 
-**Why not one ordered batch (examined, rejected).** Adding SELF to the FOR SHARE
-batch doesn't help: shared locks are mutually compatible, so both guards' batches
-succeed side by side and the deadlock merely moves to the final UPDATE's
+**Why not one ordered batch (examined, rejected for the guards).** Adding SELF to the
+FOR SHARE batch doesn't help: shared locks are mutually compatible, so both guards'
+batches succeed side by side and the deadlock merely moves to the final UPDATE's
 share-to-exclusive upgrade — an acquisition outside the ordered batch (the classic
-lock-upgrade deadlock). The variants that do work both cost more than they save:
-locking the whole batch FOR UPDATE serializes every start that shares a dependency,
-and per-row mixed modes in strict id order require a row-by-row locking loop. The
-invariant is safe under all options; only the price of a rare, already-handled 409
-differs.
+lock-upgrade deadlock). The variants that do work both cost more than they save on
+the hot transition path: locking the whole batch FOR UPDATE serializes every start
+that shares a dependency, and per-row mixed modes in strict id order require a
+row-by-row locking loop. The invariant is safe under all options; only the price of
+a rare, already-handled 409 differs.
+
+**Amendment: the dependency-WRITE path did switch to FOR UPDATE.** The same analysis
+showed its original FOR SHARE batch was subtly wrong-shaped: ordering serialized
+nothing between share locks, so reverse-edge writers met as an upgrade deadlock
+(handled, but accidental). Exclusive ordered locks make that path structurally
+deadlock-free, and the cost is negligible there — the self row needs the exclusive
+lock anyway for the version bump, and concurrent dependency edits sharing target
+rows are rare (unlike concurrent starts sharing a dependency, which is why the
+transition guards keep FOR SHARE).
 
 **Reframed (same day).** The cleaner statement of all of this is a single standing
 invariant, now recorded as R-3.0: *a task is in_progress only while all its

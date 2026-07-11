@@ -169,13 +169,17 @@ dependent) inside the same transaction that writes the links. O(V+E) on the reac
 subgraph — trivial at this scale. Detected cycle returns the path in the 400 body for
 a good error UX.
 
-**Race protection (eng-review decision, same pattern as D2):** the dependency-write
-transaction first takes `SELECT … FOR SHARE` on all involved task rows (the dependent +
-every new dependency), **ordered by id** so two overlapping writers always acquire locks
-in the same order (no deadlock). Concurrent reverse-edge writes (A→B and B→A) therefore
-serialize, and the second transaction's cycle walk sees the first's committed edges →
-400. Without this, both DFS checks pass against pre-commit state and a permanent
-mutual-block cycle lands.
+**Race protection (eng-review decision):** the dependency-write transaction first
+takes `SELECT … FOR UPDATE` on all involved task rows (the dependent + every new
+dependency), **ordered by id**. Exclusive locks conflict, so the ordering genuinely
+serializes overlapping writers: concurrent reverse-edge writes (A→B and B→A) queue at
+their first common row, and the second walk sees the first's committed edges → 400 —
+structurally deadlock-free within this path. FOR SHARE was tried first and is subtly
+wrong here: share locks coexist, so ordering serializes nothing and the conflict
+resurfaces as an upgrade deadlock at the version bump. (The transition guards keep
+FOR SHARE — there the batch is read-only and parallel readers matter.) Without any of
+this, both DFS checks pass against pre-commit state and a permanent mutual-block
+cycle lands.
 
 Two further rules keep the graph permanently clean (eng-review decisions):
 - Dependency edits are rejected (409) unless the dependent task is `not_started` —
