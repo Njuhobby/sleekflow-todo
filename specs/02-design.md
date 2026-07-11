@@ -15,6 +15,54 @@ Traces to requirement IDs in `01-requirements.md`.
 | Tests | **Vitest** + `app.inject()` (integration) | One runner for both packages; integration tests hit real routes against a test DB |
 | Dev/Ops | docker-compose (db + api + web), GitHub Actions CI | Nice-to-have with high demo value, low cost |
 
+## System architecture
+
+```
+┌────────────────────────────── Browser ───────────────────────────────┐
+│  React SPA (Vite)                                                    │
+│  URL params = the whole view state (view/filters/sort/selected)      │
+│  TanStack Query cache — keys mirror the URL, mutations invalidate    │
+│  Radix headless primitives styled by one design-tokens stylesheet    │
+└────────────────────┬─────────────────────────────────────────────────┘
+                     │  HTTP /api/*  ·  httpOnly JWT session cookie
+                     │  dev: Vite proxy → :3001   prod: Fastify serves the SPA
+┌────────────────────▼─────────────────────────────────────────────────┐
+│  Fastify 5                                                           │
+│   onRequest auth guard → Zod validation → routes/ (HTTP only)        │
+│   Swagger UI at /docs · openapi.json generated from route schemas    │
+│  ┌─────────────────────────────────────────────────────────────────┐ │
+│  │ services/ — THE single guarded write path                       │ │
+│  │  every mutation is one transaction:                             │ │
+│  │   R-3.0 invariant guards · version-guarded write (409 on stale) │ │
+│  │   activity event + actor (same tx) · recurrence spawn hook      │ │
+│  └───────────────┬─────────────────────────────────────────────────┘ │
+│  ┌───────────────▼───────────────────────────────────────────────┐   │
+│  │ domain/ — pure functions, exhaustively unit-tested            │   │
+│  │  cycle detection · recurrence date math                       │   │
+│  └───────────────┬───────────────────────────────────────────────┘   │
+└──────────────────┼───────────────────────────────────────────────────┘
+                   │  Prisma (+ raw SQL for row locks & aggregation)
+┌──────────────────▼───────────────────────────────────────────────────┐
+│  PostgreSQL 16 (docker)                                              │
+│   todos · todo_dependencies · activities (append-only) · users       │
+│   FOR SHARE (read guards) / ordered FOR UPDATE (dependency writes)   │
+└──────────────────────────────────────────────────────────────────────┘
+
+  shared/ — Zod schemas · error-code catalog · the R-1.8 state machine ·
+  the overdue rule — imported by BOTH web and server (@shared/* alias),
+  so validation, transitions, and display rules cannot drift apart.
+```
+
+Verification & operations around the core:
+
+- **vitest** (125 unit + integration) runs against `todo_test`, schema-pushed per run;
+- **Playwright E2E** boots its own Fastify + Vite pair on `todo_test` and walks the
+  live-demo script;
+- **CI** (GitHub Actions): lint + typecheck + tests, and the E2E, each with a
+  Postgres service container;
+- **docker compose**: `up` = database only (local dev); `--profile full` = one app
+  image serving API + SPA with migrations applied on boot.
+
 ## Repository layout (monorepo, npm workspaces)
 
 ```

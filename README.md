@@ -9,7 +9,8 @@ headless Radix primitives · Vitest + Playwright.
 
 > 📄 Start here: [`docs/decision-log.md`](docs/decision-log.md) — how ambiguous
 > requirements were interpreted, the key trade-offs, what was cut and why.
-> Full working specs live in [`specs/`](specs/).
+> Full working specs live in [`specs/`](specs/); the architecture diagram is in
+> [`specs/02-design.md`](specs/02-design.md#system-architecture).
 
 ## Quickstart
 
