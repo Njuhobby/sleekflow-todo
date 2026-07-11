@@ -215,6 +215,16 @@ impossible-by-construction guarantee actually holds everywhere.
 crossfire with a simultaneously-starting dependent is resolved by Postgres deadlock
 detection, surfaced as a retryable 409.
 
+**Why not one ordered batch (examined, rejected).** Adding SELF to the FOR SHARE
+batch doesn't help: shared locks are mutually compatible, so both guards' batches
+succeed side by side and the deadlock merely moves to the final UPDATE's
+share-to-exclusive upgrade — an acquisition outside the ordered batch (the classic
+lock-upgrade deadlock). The variants that do work both cost more than they save:
+locking the whole batch FOR UPDATE serializes every start that shares a dependency,
+and per-row mixed modes in strict id order require a row-by-row locking loop. The
+invariant is safe under all options; only the price of a rare, already-handled 409
+differs.
+
 **Reframed (same day).** The cleaner statement of all of this is a single standing
 invariant, now recorded as R-3.0: *a task is in_progress only while all its
 dependencies are completed — at all times, not merely at transition time*. The brief
